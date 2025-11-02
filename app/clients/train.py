@@ -1,10 +1,17 @@
 import torch
-from modelNet import Net
+from modelNet import Net, netTransform
 import torch.optim as optim
+from torch.utils.data import random_split
 from torchvision import datasets, transforms
 from clients.model_mnist import train, test
 import os
 # import requests
+
+torch.serialization.add_safe_globals([datasets.mnist.MNIST])
+torch.serialization.add_safe_globals([transforms.transforms.Compose])
+torch.serialization.add_safe_globals([transforms.transforms.ToTensor])
+torch.serialization.add_safe_globals([transforms.transforms.Normalize])
+torch.serialization.add_safe_globals([datasets.vision.StandardTransform])
 
 def post_train(**kwargs: dict):
     """
@@ -42,29 +49,25 @@ def post_train(**kwargs: dict):
     kwargs = {'num_workers': 8, 'pin_memory': True} if args["use_cuda"] else {}
 
     try:
-        mnist_trainset = datasets.MNIST(args["data_path"], train=True, download=False,
-                        transform=transforms.Compose([
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.1307,), (0.3081,))
-                        ]))
+        train_dataset = datasets.MNIST(root=args["data_path"], train=True, download=(not args["load_data"]),transform=netTransform)
+
+        test_dataset = datasets.MNIST(root=args["data_path"], train=False, download=(not args["load_data"]), transform=netTransform)
 
         train_loader = torch.utils.data.DataLoader(
-            mnist_trainset,
+            train_dataset,
             batch_size=args["batch_size"], shuffle=True, **kwargs)
         
 
         test_loader = torch.utils.data.DataLoader(
-            datasets.MNIST(args["data_path"], train=False, transform=transforms.Compose([
-                            transforms.ToTensor(),
-                            transforms.Normalize((0.1307,), (0.3081,))
-                        ])),
+            test_dataset,
             batch_size=args["test_batch_size"], shuffle=True, **kwargs)
 
-    except:
+    except Exception as e:
         print("Fail in load data!")
+        print(e)
         return False
 
-    model = Net()
+    model = Net().to(args["device"])
     if args["model_static_dict"] != {}:
         try:
             model.load_state_dict(args["model_static_dict"])
@@ -81,11 +84,14 @@ def post_train(**kwargs: dict):
 
         model_path = args["model_path"]
         if model_path == "":
-            models_path = sorted(os.listdir("./clients/models/"))
+            if not os.path.exists("./clients/models/"):
+                os.mkdir("./clients/models/")
+            models_path = sorted(os.listdir("./clients/models/")) 
 
             if len(models_path) != 0:
                 last_idx = models_path[-1].split("_")[-1]
-                model_path = "./clients/models/model_" + (int(last_idx) + 1) + ".pt"
+                last_idx = last_idx.split(".")[0]
+                model_path = "./clients/models/model_" + str(int(last_idx) + 1) + ".pt"
             
             else:
                 model_path = "./clients/models/model_1.pt"
