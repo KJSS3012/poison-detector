@@ -1,0 +1,87 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+.env
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Data directories and large datasets
+/data/
+/app/data/
+
+# Model artifacts (weights, checkpoints, compiled models)
+*.h5
+*.hdf5
+*.ckpt
+*.pth
+*.pt
+*.pb
+*.tflite
+*.onnx
+
+# Common folders for ML projects
+/models/
+/app/clients/models/
+*/model_states/
+
+# Secrets and environment files
+secrets.json
+*.key
+*.pem
+
+# Keep the README, code and small configs tracked
