@@ -5,6 +5,11 @@ import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
 
+netTransform = transforms.Compose([
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.1307,), (0.3081,))
+                        ])
+
 class Net(nn.Module):
     """
     Convolutional Neural Network for MNIST digit classification (0-9).
