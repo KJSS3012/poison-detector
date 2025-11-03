@@ -2,6 +2,8 @@
 __pycache__/
 ./app/__pycache__
 ./app/clients/__pycache__
+./app/central/__pycache__
+./app/analyses/__pycache__
 *.py[cod]
 *$py.class
 
@@ -78,7 +80,8 @@ temp/
 
 # Common folders for ML projects
 /models/
-/app/clients/models/
+#/app/clients/models/
+#/app/central/models/
 */model_states/
 
 # Secrets and environment files
