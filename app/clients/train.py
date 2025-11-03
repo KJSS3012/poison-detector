@@ -1,12 +1,12 @@
 import torch
 from modelNet import Net, netTransform
 import torch.optim as optim
-from torch.utils.data import random_split
 from torchvision import datasets, transforms
 from clients.model_mnist import train, test
+from syspaths import SysPaths as spath
 import os
-# import requests
 
+# Torch configs to allow custom classes in serialization
 torch.serialization.add_safe_globals([datasets.mnist.MNIST])
 torch.serialization.add_safe_globals([transforms.transforms.Compose])
 torch.serialization.add_safe_globals([transforms.transforms.ToTensor])
@@ -26,7 +26,7 @@ def post_train(**kwargs: dict):
     - model_path: String with the path to saved model (default str "model_" + (n) + ".pt"). Note that the default model path is dynamic to prevent overwriting.
     - model_static_dict: n-darray with the weights of a trained model to fine tuning (default is a empty dictionary).
     - load_data: Boolean if you load a existing data (default bool False).
-    - data_path: String with the path to load data (default str "./data").
+    - data_path: String with the path to load data (default str "./base_data_set").
     - log_interval: (default 10).
     """
     args = {
@@ -41,7 +41,7 @@ def post_train(**kwargs: dict):
         "model_path" : kwargs.get("model_path", ""),
         "model_static_dict" : kwargs.get("model_static_dict", {}),
         "load_data" : kwargs.get("load_data", False),
-        "data_path" : kwargs.get("data_path", "./data"),
+        "data_path" : kwargs.get("data_path", spath.PATH_BASE_DATASET),
         "log_interval" : kwargs.get("log_interval", 10),
     }
 
@@ -84,17 +84,17 @@ def post_train(**kwargs: dict):
 
         model_path = args["model_path"]
         if model_path == "":
-            if not os.path.exists("./clients/models/"):
-                os.mkdir("./clients/models/")
-            models_path = sorted(os.listdir("./clients/models/")) 
+            if not os.path.exists(spath.PATH_CLIENT_MODELS.value):
+                os.mkdir(spath.PATH_CLIENT_MODELS.value)
+            models_path = sorted(os.listdir(spath.PATH_CLIENT_MODELS.value)) 
 
             if len(models_path) != 0:
                 last_idx = models_path[-1].split("_")[-1]
                 last_idx = last_idx.split(".")[0]
-                model_path = "./clients/models/model_" + str(int(last_idx) + 1) + ".pt"
+                model_path = spath.PATH_CLIENT_MODELS.value + "model_" + str(int(last_idx) + 1) + ".pt"
             
             else:
-                model_path = "./clients/models/model_1.pt"
+                model_path = spath.PATH_CLIENT_MODELS.value + "model_1.pt"
         
         torch.save(model.state_dict(), model_path)
     
