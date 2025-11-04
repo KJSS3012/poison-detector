@@ -15,6 +15,8 @@ torch.serialization.add_safe_globals([datasets.vision.StandardTransform])
 
 def post_train(**kwargs: dict):
     """
+    Method to train a model with MNIST dataset, the idea is to call this method passing the features you want to customize in training.
+
     args:
     - batch_size: Integer of the batchs count to train (default int 64).
     - test_batch_size: Integer of the batchs count to test (default int 1000).

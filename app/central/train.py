@@ -3,7 +3,18 @@ from modelNet import Net
 from syspaths import SysPaths as spath
 
 def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "central_model.pt", use_cuda: bool = False, alpha: float = 0.2):
+    """
+    Method to receive models from clients, merge them with the central model using average of the weights and save the updated model as central model.
+    For this, send a compatible static dict model, please. If you have questions about compatibility, check the modelNet.py documentation.
     
+    args:
+    - new_model: static dict of the new model received from a client.
+    - old_model: static dict of the old central model, if None it will be loaded from disk.
+    - old_mpath: path to load/save the central model.
+    - use_cuda: boolean to indicate if cuda is used.
+    - alpha: float value to weight the new model in the merging process.
+    """
+
     if not is_compatible(new_model):
         print("\n=====================\n",f"The model is incompatible!\n=====================\n")
         return False
@@ -40,6 +51,12 @@ def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "centra
 
 
 def is_compatible(static_dict):
+    """
+    Method to check if a static dict model is compatible with the base model defined in modelNet.py
+
+    args:
+    - static_dict: static dict of the model to be checked.
+    """
     base_model = Net()
     model_dict = base_model.state_dict()
 

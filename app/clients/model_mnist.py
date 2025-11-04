@@ -2,6 +2,15 @@ import torch
 import torch.nn.functional as F
 
 def train(args, model, device, train_loader, optimizer, epoch):
+    """
+    Receive a model and train it with the provided data loader and optimizer for one epoch.
+
+    args:
+    - args: dict with training parameters.
+    - model: the neural network model to be trained in static dict format.
+    - device: the device to run the training on ('cpu' or 'cuda').
+    - train_loader: DataLoader providing the training data. 
+    """
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -16,6 +25,15 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 100. * batch_idx / len(train_loader), loss.item()))
 
 def test(args, model, device, test_loader):
+    """
+    Receive a model and test it with the provided data loader.
+
+    args:
+    - args: dict with testing parameters.
+    - model: the neural network model to be tested in static dict format.
+    - device: the device to run the testing on ('cpu' or 'cuda').
+    - test_loader: DataLoader providing the testing data.
+    """
     model.eval()
     test_loss = 0
     correct = 0

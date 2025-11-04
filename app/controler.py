@@ -11,11 +11,22 @@ import torch
 
 
 def post_client_train():
+    """
+    Method to simulate a client training session.
+    It's call the post_train method from clients/train.py with some default parameters.
+    """
     client_train(epochs=5, use_cuda=True, load_data=True, data_path=spath.PATH_BASE_DATASET)
 
 
 
 def post_central_train(selected_indice_models: list = [-1]):
+    """
+    Method to simulate a central training session.
+    It's call the post_train method from central/train.py with some default parameters.
+
+    args:
+    - selected_indice_models: list of integers with the indices of the client models to be used in the training. If empty, all models will be used. If [-1], only the last model will be used.
+    """
     new_model = get_weights(isCentral=False, selected_indice_models=selected_indice_models)
     new_model_dict = new_model[list(new_model.keys())[0]]
     central_train(new_model=new_model_dict, use_cuda=True)
@@ -23,6 +34,13 @@ def post_central_train(selected_indice_models: list = [-1]):
 
 
 def get_weights(isCentral = True,selected_indice_models: list = []):
+    """
+    Method to load one or more static dict models saved from clients or central.
+
+    args:
+    - isCentral: boolean to indicate if the models are from central or clients.
+    - selected_indice_models: list of integers with the indices of the models to be loaded. If empty, all models will be loaded. If [-1], only the last model will be loaded.
+    """
     # Carregar pesos de um ou mais modelos vindos do cliente
     path = spath.PATH_CLIENT_MODELS.value if not isCentral else spath.PATH_CENTRAL_MODELS.value
 
@@ -61,7 +79,7 @@ def get_weights(isCentral = True,selected_indice_models: list = []):
                 selected_models_dict[model_name] = model_static_dict
 
     return selected_models_dict
-    ...
+    
 
 
 
