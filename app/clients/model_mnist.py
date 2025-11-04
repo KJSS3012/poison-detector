@@ -1,7 +1,8 @@
 import torch
 import torch.nn.functional as F
+from sysvars import SysVars as svar
 
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(args, model, train_loader, optimizer, epoch):
     """
     Receive a model and train it with the provided data loader and optimizer for one epoch.
 
@@ -11,6 +12,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
     - device: the device to run the training on ('cpu' or 'cuda').
     - train_loader: DataLoader providing the training data. 
     """
+    device = svar.DEFAULT_DEVICE.value
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -24,7 +26,7 @@ def train(args, model, device, train_loader, optimizer, epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
 
-def test(args, model, device, test_loader):
+def test(args, model, test_loader):
     """
     Receive a model and test it with the provided data loader.
 
@@ -34,6 +36,7 @@ def test(args, model, device, test_loader):
     - device: the device to run the testing on ('cpu' or 'cuda').
     - test_loader: DataLoader providing the testing data.
     """
+    device = svar.DEFAULT_DEVICE.value
     model.eval()
     test_loss = 0
     correct = 0

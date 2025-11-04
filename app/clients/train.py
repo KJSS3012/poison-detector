@@ -24,7 +24,6 @@ def post_train(**kwargs: dict):
     - lr: Float to learning rate (default float 0.01).
     - momentum: Float to SGD momentum (default float 0.5).
     - seed: Random id seed (default int 1).
-    - use_cuda: Boolean if you use Cuda Service (default bool False).
     - model_path: String with the path to saved model (default str "model_" + (n) + ".pt"). Note that the default model path is dynamic to prevent overwriting.
     - model_static_dict: n-darray with the weights of a trained model to fine tuning (default is a empty dictionary).
     - load_data: Boolean if you load a existing data (default bool False).
@@ -38,8 +37,6 @@ def post_train(**kwargs: dict):
         "lr" : kwargs.get("lr", 0.01),
         "momentum" : kwargs.get("momentum", 0.5),
         "seed" : kwargs.get("seed", 1),
-        "use_cuda" : kwargs.get("use_cuda", False),
-        "device" : "cuda" if kwargs.get("use_cuda", False) else "cpu",
         "model_path" : kwargs.get("model_path", ""),
         "model_static_dict" : kwargs.get("model_static_dict", {}),
         "load_data" : kwargs.get("load_data", False),
@@ -47,8 +44,10 @@ def post_train(**kwargs: dict):
         "log_interval" : kwargs.get("log_interval", 10),
     }
 
+    device = svar.DEFAULT_DEVICE.value
+
     torch.manual_seed(args["seed"])
-    kwargs = {'num_workers': 8, 'pin_memory': True} if args["use_cuda"] else {}
+    kwargs = {'num_workers': 8, 'pin_memory': True} if device == 'cuda' else {}
 
     try:
         train_dataset = datasets.MNIST(root=args["data_path"], train=True, download=(not args["load_data"]),transform=netTransform)
@@ -69,7 +68,7 @@ def post_train(**kwargs: dict):
         print(e)
         return False
 
-    model = Net().to(args["device"])
+    model = Net().to(device)
     if args["model_static_dict"] != {}:
         try:
             model.load_state_dict(args["model_static_dict"])
@@ -81,8 +80,8 @@ def post_train(**kwargs: dict):
         optimizer = optim.SGD(model.parameters(), lr=args["lr"], momentum=args["momentum"])
 
         for epoch in range(1, args["epochs"] + 1):
-            train(args, model, args["device"], train_loader, optimizer, epoch)
-            test(args, model, args["device"], test_loader)
+            train(args, model, device, train_loader, optimizer, epoch)
+            test(args, model, device, test_loader)
 
         model_path = args["model_path"]
         if model_path == "":

@@ -15,7 +15,7 @@ def post_client_train():
     Method to simulate a client training session.
     It's call the post_train method from clients/train.py with some default parameters.
     """
-    client_train(epochs=5, use_cuda=True, load_data=True, data_path=svar.PATH_BASE_DATASET)
+    client_train(epochs=5, load_data=True, data_path=svar.PATH_BASE_DATASET)
 
 
 
@@ -29,7 +29,7 @@ def post_central_train(selected_indice_models: list = [-1]):
     """
     new_model = get_weights(isCentral=False, selected_indice_models=selected_indice_models)
     new_model_dict = new_model[list(new_model.keys())[0]]
-    central_train(new_model=new_model_dict, use_cuda=True)
+    central_train(new_model=new_model_dict)
 
 
 
