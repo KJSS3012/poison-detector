@@ -3,7 +3,7 @@ from modelNet import Net, netTransform
 import torch.optim as optim
 from torchvision import datasets, transforms
 from clients.model_mnist import train, test
-from syspaths import SysPaths as spath
+from sysvars import SysVars as svar
 import os
 
 # Torch configs to allow custom classes in serialization
@@ -43,7 +43,7 @@ def post_train(**kwargs: dict):
         "model_path" : kwargs.get("model_path", ""),
         "model_static_dict" : kwargs.get("model_static_dict", {}),
         "load_data" : kwargs.get("load_data", False),
-        "data_path" : kwargs.get("data_path", spath.PATH_BASE_DATASET),
+        "data_path" : kwargs.get("data_path", svar.PATH_BASE_DATASET),
         "log_interval" : kwargs.get("log_interval", 10),
     }
 
@@ -86,17 +86,17 @@ def post_train(**kwargs: dict):
 
         model_path = args["model_path"]
         if model_path == "":
-            if not os.path.exists(spath.PATH_CLIENT_MODELS.value):
-                os.mkdir(spath.PATH_CLIENT_MODELS.value)
-            models_path = sorted(os.listdir(spath.PATH_CLIENT_MODELS.value)) 
+            if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
+                os.mkdir(svar.PATH_CLIENT_MODELS.value)
+            models_path = sorted(os.listdir(svar.PATH_CLIENT_MODELS.value)) 
 
             if len(models_path) != 0:
                 last_idx = models_path[-1].split("_")[-1]
                 last_idx = last_idx.split(".")[0]
-                model_path = spath.PATH_CLIENT_MODELS.value + "model_" + str(int(last_idx) + 1) + ".pt"
+                model_path = svar.PATH_CLIENT_MODELS.value + "model_" + str(int(last_idx) + 1) + ".pt"
             
             else:
-                model_path = spath.PATH_CLIENT_MODELS.value + "model_1.pt"
+                model_path = svar.PATH_CLIENT_MODELS.value + "model_1.pt"
         
         torch.save(model.state_dict(), model_path)
     

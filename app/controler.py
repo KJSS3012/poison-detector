@@ -4,7 +4,7 @@ from central.train import post_train as central_train
 from torchvision import datasets, transforms
 from modelNet import netTransform
 from torch.utils.data import random_split
-from syspaths import SysPaths as spath
+from sysvars import SysVars as svar
 import pandas as pd
 import torch
 
@@ -15,7 +15,7 @@ def post_client_train():
     Method to simulate a client training session.
     It's call the post_train method from clients/train.py with some default parameters.
     """
-    client_train(epochs=5, use_cuda=True, load_data=True, data_path=spath.PATH_BASE_DATASET)
+    client_train(epochs=5, use_cuda=True, load_data=True, data_path=svar.PATH_BASE_DATASET)
 
 
 
@@ -42,9 +42,9 @@ def get_weights(isCentral = True,selected_indice_models: list = []):
     - selected_indice_models: list of integers with the indices of the models to be loaded. If empty, all models will be loaded. If [-1], only the last model will be loaded.
     """
     # Carregar pesos de um ou mais modelos vindos do cliente
-    path = spath.PATH_CLIENT_MODELS.value if not isCentral else spath.PATH_CENTRAL_MODELS.value
+    path = svar.PATH_CLIENT_MODELS.value if not isCentral else svar.PATH_CENTRAL_MODELS.value
 
-    if not os.path.exists(spath.PATH_CLIENT_MODELS.value):
+    if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
         return "There arent models saved from clients."
     
     models_path = sorted(os.listdir(path))

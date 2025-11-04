@@ -1,6 +1,6 @@
 import torch
 from modelNet import Net
-from syspaths import SysPaths as spath
+from sysvars import SysVars as svar
 
 def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "central_model.pt", use_cuda: bool = False, alpha: float = 0.2):
     """
@@ -22,8 +22,8 @@ def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "centra
     device = "cuda" if use_cuda else "cpu"
 
     if old_model is None:
-        if os.path.exists(spath.PATH_CENTRAL_MODELS.value + old_mpath):
-            old_model = torch.load(spath.PATH_CENTRAL_MODELS.value + old_mpath, map_location=device)
+        if os.path.exists(svar.PATH_CENTRAL_MODELS.value + old_mpath):
+            old_model = torch.load(svar.PATH_CENTRAL_MODELS.value + old_mpath, map_location=device)
         else:
             old_model = Net().state_dict()
             alpha = 1.0
