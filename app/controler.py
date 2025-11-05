@@ -75,7 +75,6 @@ def get_weights(isCentral = True,selected_indice_models: list = []):
         FileNotFoundError: If the specified model directory does not exist.
         ValueError: If no valid model files are found.
     """
-    # Carregar pesos de um ou mais modelos vindos do cliente
     path = svar.PATH_CLIENT_MODELS.value if not isCentral else svar.PATH_CENTRAL_MODELS.value
 
     if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
@@ -174,10 +173,6 @@ def get_analyses():
     #train_table.to_csv(svar.PATH_ANALYSES_CVS.value + "analyses.csv", index=False, encoding="utf-8")
     #map_table.to_csv(svar.PATH_ANALYSES_CVS.value + "map.csv", index=False, encoding="utf-8")
 
-def get_graphics():
-    # Ler dados salvos em tabelas CSV e gerar analises graficas    
-    ...
-
 
 
 def gradCAM():
@@ -207,7 +202,7 @@ def manipule_data():
 
     mnist_trainset = datasets.MNIST(root=svar.PATH_BASE_DATASET.value, train=True, download=False, transform=netTransform)
 
-    #Change all labels 7 to 1
+    # Change all labels 7 to 1
     for i in range(len(mnist_trainset)):
         t, c = mnist_trainset[i]
         if c == 7:
