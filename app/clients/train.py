@@ -40,7 +40,7 @@ def post_train(**kwargs: dict):
         "model_path" : kwargs.get("model_path", ""),
         "model_static_dict" : kwargs.get("model_static_dict", {}),
         "load_data" : kwargs.get("load_data", False),
-        "data_path" : kwargs.get("data_path", svar.PATH_BASE_DATASET),
+        "data_path" : kwargs.get("data_path", svar.PATH_BASE_DATASET.value),
         "log_interval" : kwargs.get("log_interval", 10),
     }
 
@@ -80,8 +80,8 @@ def post_train(**kwargs: dict):
         optimizer = optim.SGD(model.parameters(), lr=args["lr"], momentum=args["momentum"])
 
         for epoch in range(1, args["epochs"] + 1):
-            train(args, model, device, train_loader, optimizer, epoch)
-            test(args, model, device, test_loader)
+            train(args, model, train_loader, optimizer, epoch)
+            test(args, model, test_loader)
 
         model_path = args["model_path"]
         if model_path == "":
