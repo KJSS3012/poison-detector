@@ -1,6 +1,9 @@
 from enum import Enum
 
 class SysVars(Enum):
+    """
+    System Variables used across the project
+    """
     DEFAULT_DEVICE = "cuda"
     PATH_BASE_DATASET = "./datasets/base_data_set/"
     PATH_CLIENT_MODELS = "./clients/models/"

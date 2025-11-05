@@ -10,12 +10,18 @@ from sysvars import SysVars as svar
 import pandas as pd
 import torch
 
-
-
 def post_client_train():
     """
-    Method to simulate a client training session.
-    It's call the post_train method from clients/train.py with some default parameters.
+    Simulates local (client-side) training sessions.
+
+    This function calls the `post_train` method from `clients/train.py` twice, 
+    using different datasets: one benign and one poisoned. 
+
+    It emulates the independent training of multiple clients in a 
+    federated learning environment.
+
+    Returns:
+        None
     """
     client_train(epochs=100, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
     client_train(epochs=100, load_data=True, data_path="./datasets/poisoned_data_set_1/")
@@ -24,11 +30,20 @@ def post_client_train():
 
 def post_central_train(selected_indice_models: list = [-1]):
     """
-    Method to simulate a central training session.
-    It's call the post_train method from central/train.py with some default parameters.
+    Simulates the central (server-side) aggregation training process.
 
-    args:
-    - selected_indice_models: list of integers with the indices of the client models to be used in the training. If empty, all models will be used. If [-1], only the last model will be used.
+    This function loads the weights of client models and performs 
+    central training by calling `central/train.py`.
+
+    Args:
+        selected_indice_models (list[int], optional): 
+            A list of integers representing the indices of the client models 
+            to be aggregated.
+            - If empty, all models will be used.
+            - If [-1], only the most recent model will be used.
+
+    Returns:
+        None
     """
     new_model = get_weights(isCentral=False, selected_indice_models=selected_indice_models)
     new_model_dict = new_model[list(new_model.keys())[0]]
@@ -38,22 +53,38 @@ def post_central_train(selected_indice_models: list = [-1]):
 
 def get_weights(isCentral = True,selected_indice_models: list = []):
     """
-    Method to load one or more static dict models saved from clients or central.
+    Loads one or more saved model state_dicts from disk.
 
-    args:
-    - isCentral: boolean to indicate if the models are from central or clients.
-    - selected_indice_models: list of integers with the indices of the models to be loaded. If empty, all models will be loaded. If [-1], only the last model will be loaded.
+    Can load either central or client models depending on the `isCentral` flag.
+
+    Args:
+        isCentral (bool, optional): 
+            Indicates whether to load models from the central server (True) 
+            or from clients (False). Default is True.
+        selected_indice_models (list[int], optional): 
+            List of model indices to load. 
+            - If empty, all models will be loaded.
+            - If [-1], only the last model will be loaded.
+
+    Returns:
+        dict[str, dict]: 
+            A dictionary mapping model filenames to their corresponding 
+            PyTorch state_dict objects.
+
+    Raises:
+        FileNotFoundError: If the specified model directory does not exist.
+        ValueError: If no valid model files are found.
     """
     # Carregar pesos de um ou mais modelos vindos do cliente
     path = svar.PATH_CLIENT_MODELS.value if not isCentral else svar.PATH_CENTRAL_MODELS.value
 
     if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
-        return "There arent models saved from clients."
+        raise FileNotFoundError(f"The specified path {path} does not exist.")
     
     models_path = sorted(os.listdir(path))
 
     if len(models_path) == 0:
-        return "There arent models saved from clients."
+        raise ValueError(f"No valid model files found in {path}.")
     
     models_indices = []
     for model_name in models_path:
@@ -86,10 +117,19 @@ def get_weights(isCentral = True,selected_indice_models: list = []):
 
 
 def get_analyses():
-    # Carregar modelo (ou modelos) e fazer testes
-    # Salvar testes em CSV
-    #Seguindo esse modelo
+    """
+    Performs model performance analyses and exports results to CSV files.
 
+    This function evaluates trained models (e.g., accuracy and confusion matrix),
+    logs the results, and saves them as CSV files in the analysis directory 
+    specified by `SysVars`.
+
+    Additionally, it prints the accuracy of benign and malicious client models
+    to the console.
+
+    Returns:
+        None
+    """
     #if not os.path.exists(svar.PATH_ANALYSES_CVS.value + "analyses.csv"):
     #    train_labels = {
     #        "train_id": [],
@@ -118,11 +158,9 @@ def get_analyses():
         }
         map_table = pd.DataFrame(map_labels)
 
-    else: map_table = pd.read_csv(svar.PATH_ANALYSES_CVS.value + "map.csv")
+    else: 
+        map_table = pd.read_csv(svar.PATH_ANALYSES_CVS.value + "map.csv")
 
-
-
-    #### BUILD ANALYSES HERE ####
     models = get_weights(isCentral=False, selected_indice_models=[4, 5])
 
     #get_confusion_map(models["model_4.pt"], "model_4")
@@ -133,14 +171,8 @@ def get_analyses():
     print("Acc benign client model 4: ", acc_belign)
     print("Acc malign client model 5: ", acc_malign)
 
-
-
-
     #train_table.to_csv(svar.PATH_ANALYSES_CVS.value + "analyses.csv", index=False, encoding="utf-8")
     #map_table.to_csv(svar.PATH_ANALYSES_CVS.value + "map.csv", index=False, encoding="utf-8")
-    ...
-
-
 
 def get_graphics():
     # Ler dados salvos em tabelas CSV e gerar analises graficas    
@@ -159,15 +191,23 @@ def lime():
 
 
 def manipule_data():
-    # Pegue o diretorio ./data, troque os labels de 7 para 1
-    # aumente os dados de ./data duplicando o dataset e invertendo as cores dos dados duplicados
-    # Carregue apenas N% dos dados
-    # 
+    """
+    Manipulates the MNIST dataset to create a poisoned version.
+
+    This function:
+        - Loads the original MNIST training dataset.
+        - Reassigns all label values `7` to `1` (data poisoning step).
+        - Splits the dataset into training and testing subsets.
+        - Saves the new poisoned dataset to 
+          `./datasets/poisoned_data_set_1/MNIST/processed/`.
+
+    Returns:
+        None
+    """
 
     mnist_trainset = datasets.MNIST(root=svar.PATH_BASE_DATASET.value, train=True, download=False, transform=netTransform)
 
-
-    # AQUI POSSO ALTERAR O MNIST TRAINSET
+    #Change all labels 7 to 1
     for i in range(len(mnist_trainset)):
         t, c = mnist_trainset[i]
         if c == 7:
@@ -188,8 +228,5 @@ def manipule_data():
     test_data = mnist_trainset.data[test_indices].clone()
     test_targets = mnist_trainset.targets[test_indices].clone()
 
-
-    #os.mkdir("./data/MNIST/processed")
     torch.save((train_data, train_targets), './datasets/poisoned_data_set_1/MNIST/processed/training.pt')
     torch.save((test_data, test_targets), './datasets/poisoned_data_set_1/MNIST/processed/test.pt')
-    ...
