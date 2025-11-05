@@ -2,3 +2,5 @@ torch
 torchvision
 Pillow
 pandas
+seaborn
+matplotlib
