@@ -1,78 +1,77 @@
 import numpy as np
 import cv2
+import torch
 
 import torch 
 from torch.nn import functional as F
 from torch.autograd import Variable
+
 from sysvars import SysVars as svar
-
-from xai.gradcam.utils import load_image, load_model, preprocess_image, save 
-
 from modelNet import Net
+from xai.gradcam.utils import load_image, preprocess_image, save_cam
 
-class GradCAM():
-    def __init__(self,
-                img_path, 
-                model_dict, 
-                class_index = None):
 
-        self.img_path = img_path
-        self.model_dict = model_dict
-        self.class_index = class_index
-        
-        # Save outputs of forward and backward hooking
-        self.gradients = dict()
-        self.activations = dict()
-        self.device = svar.DEFAULT_DEVICE.value
+def gradcam(
+            img_path, 
+            model_dict, 
+            model_name = "model.pt",
+            class_index = None,
+            save = False
+            ) -> torch.Tensor:
 
-        m = Net().to(self.device)
-        m.load_state_dict(self.model_dict)
-        self.model = m
+    # Save outputs of forward and backward hooking
+    gradients = dict()
+    activations = dict()
+    device = svar.DEFAULT_DEVICE.value
 
-        def backward_hook(module, grad_input, grad_output):
-            self.gradients['value'] = grad_output[0]
-            return None
-        def forward_hook(module, input, output):
-            self.activations['value'] = output
-            return None
-        
-        self.t_layer = self.model.conv2
-        self.t_layer.register_forward_hook(forward_hook)
-        self.t_layer.register_full_backward_hook(backward_hook)
-        
-    def __call__(self):
+    model = Net().to(device)
+    model.load_state_dict(model_dict)
 
-        print('\nGradCAM start ... ')
+    def backward_hook(module, grad_input, grad_output):
+        gradients['value'] = grad_output[0]
+        return None
+    def forward_hook(module, input, output):
+        activations['value'] = output
+        return None
+    
+    t_layer = model.conv2
+    t_layer.register_forward_hook(forward_hook)
+    t_layer.register_full_backward_hook(backward_hook)
 
-        self.img = load_image(self.img_path)
+    print('\nGradCAM start ... ')
 
-        #numpy to tensor and normalize
-        self.input = preprocess_image(self.img)
+    img = load_image(img_path)
 
-        output = self.model(self.input)
-        self.class_index = np.argmax(output.cpu().data.numpy()) if self.device == 'cpu' else np.argmax(output.data.numpy())
+    #numpy to tensor and normalize
+    #input = preprocess_image(img)
 
-        one_hot = np.zeros((1, output.size()[-1]), dtype = np.float32)
-        one_hot[0][self.class_index] = 1
-        one_hot = Variable(torch.from_numpy(one_hot), requires_grad = True)
-        one_hot = torch.sum(one_hot * output) if self.device == 'cpu' else torch.sum(one_hot.cuda() * output)
+    output = model(img)
+    class_index = np.argmax(output.cpu().data.numpy()) if device == 'cpu' else np.argmax(output.cuda().data.numpy())
 
-        self.model.zero_grad()
-        one_hot.backward(retain_graph = True)
-        
-        gradients = self.gradients['value']
-        activations = self.activations['value']
-        
-        #reshaping
-        weights = torch.mean(torch.mean(gradients, dim=2), dim=2)
-        weights = weights.reshape(weights.shape[1], 1, 1)
-        activationMap = torch.squeeze(activations[0])
-           
-        #Get gradcam
-        gradcam = F.relu((weights*activationMap).sum(0))
-        gradcam = cv2.resize(gradcam.data.cpu().numpy(), (28,28))
-        save(gradcam, self.img, self.img_path, self.model_path)
-        
-        print('GradCAM end !!!\n')
+    one_hot = np.zeros((1, output.size()[-1]), dtype = np.float32)
+    one_hot[0][class_index] = 1
+    one_hot = Variable(torch.from_numpy(one_hot), requires_grad = True)
+    one_hot = torch.sum(one_hot * output) if device == 'cpu' else torch.sum(one_hot.cuda() * output)
+
+    model.zero_grad()
+    one_hot.backward(retain_graph = True)
+    
+    gradients = gradients['value']
+    activations = activations['value']
+    
+    #reshaping
+    weights = torch.mean(torch.mean(gradients, dim=2), dim=2)
+    weights = weights.reshape(weights.shape[1], 1, 1)
+    activationMap = torch.squeeze(activations[0])
+          
+    #Get gradcam
+    gradcam = F.relu((weights*activationMap).sum(0))
+
+    if not save: 
+        mask = cv2.resize(gradcam.data.cpu().numpy(), (28,28)) if device == 'cpu' else cv2.resize(gradcam.data.cuda().numpy(), (28,28))
+        save_cam(mask, img, img_path, model_name)
+    
+    return gradcam
+
 
 
