@@ -11,3 +11,4 @@ class SysVars(Enum):
     PATH_ANALYSES_GRAPHICS = "./analyses/graphics/"
     PATH_ANALYSES_CVS = "./analyses/csv/"
     PATH_GRADCAMS = "./analyses/gradcams/"
+    PATH_LIMES = "./analyses/limes/"
