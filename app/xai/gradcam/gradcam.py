@@ -38,15 +38,13 @@ def gradcam(
     t_layer.register_forward_hook(forward_hook)
     t_layer.register_full_backward_hook(backward_hook)
 
-    print('\nGradCAM start ... ')
-
     img = load_image(img_path)
 
     #numpy to tensor and normalize
     #input = preprocess_image(img)
 
     output = model(img)
-    class_index = np.argmax(output.cpu().data.numpy()) if device == 'cpu' else np.argmax(output.cuda().data.numpy())
+    class_index = torch.argmax(output).item() if class_index is None else class_index
 
     one_hot = np.zeros((1, output.size()[-1]), dtype = np.float32)
     one_hot[0][class_index] = 1
@@ -67,9 +65,9 @@ def gradcam(
     #Get gradcam
     gradcam = F.relu((weights*activationMap).sum(0))
 
-    if not save: 
-        mask = cv2.resize(gradcam.data.cpu().numpy(), (28,28)) if device == 'cpu' else cv2.resize(gradcam.data.cuda().numpy(), (28,28))
-        save_cam(mask, img, img_path, model_name)
+    if save: 
+        mask = cv2.resize(gradcam.data.cpu().numpy(), (28,28))
+        save_cam(mask, img.cpu().numpy(), img_path, model_name)
     
     return gradcam
 
