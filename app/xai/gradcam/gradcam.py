@@ -8,10 +8,10 @@ from torch.autograd import Variable
 
 from sysvars import SysVars as svar
 from modelNet import Net
-from xai.gradcam.utils import load_image, preprocess_image, save_cam
+from xai.gradcam.utils import load_image, preprocess_image, save_cam, save_cam_mask
 
 
-def gradcam(
+def generate_gradcam(
             img_path, 
             model_dict, 
             model_name = "model.pt",
@@ -73,3 +73,91 @@ def gradcam(
 
 
 
+def mean_gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
+
+    models = get_weights(isCentral=isCentral, selected_indice_models=selected_indice_models)
+
+    cams = {}
+
+    samples = os.listdir("./datasets/sample_images/")
+    numbers = {
+        0:[],
+        1:[],
+        2:[],
+        3:[],
+        4:[],
+        5:[],
+        6:[],
+        7:[],
+        8:[],
+        9:[]
+    }
+
+    for f in samples:
+        num = f.split(".")[0]
+        num = f.split("_")
+        num = int(num[1])
+        numbers[num].append(f)
+
+
+    for model_name in models.keys():
+        model = model_name
+
+
+    j = 1
+    path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
+    while os.path.exists(path):
+
+        j += 1
+        path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
+    
+    os.makedirs(path)
+
+    for num in numbers.keys():
+
+        model = ''
+        cams = {}
+        cams_to_stack = []
+
+        for f in numbers[num]:
+
+            cams[f] = []
+            for i in range(10):
+
+                for model_name, model_dict in models.items():
+
+                    cams[f].append(generate_gradcam(
+                        img_path = f"./datasets/sample_images/{f}",
+                        model_dict = model_dict,
+                        model_name = f"number_{num}_belign",
+                        class_index = None,
+                        save = True
+                    ))
+
+                    #save_cam_mask(cams[f][i].detach().cpu().numpy(), f'./analyses/gradcams/cams_means/solid_cams/{num}_{i}.png')
+
+
+                    cam = cams[f][i].detach().cpu().numpy().squeeze()
+                    cam_min, cam_max = np.min(cam), np.max(cam)
+
+
+                    cam = (cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam)
+
+                    cam = cv2.resize(cam, (28, 28)) if cam.shape != (28, 28) else cam
+
+
+                    cams_to_stack.append(torch.from_numpy(cam))
+
+
+
+        stack = torch.stack(cams_to_stack)
+        mean_cam = torch.mean(stack, axis=0)
+        mean_cam = mean_cam.detach().cpu().numpy()
+
+        return mean_cam
+        #save_cam_mask(mean_cam, f'{path}mean_cam_{num}.png')
+#
+#
+        #for f, masks in cams.items():
+        #    print(f"\n\nDistance scores for image {f}:")
+        #    get_distance_scores(masks)

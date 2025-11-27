@@ -2,8 +2,7 @@ import os
 from clients.train import post_train as client_train
 from central.train import post_train as central_train
 from analyses.get_confusion_map import get_confusion_map
-from xai.gradcam.gradcam import gradcam as generate_gradcam
-from xai.gradcam.utils import save_cam_mask
+from xai.gradcam.gradcam import mean_gradCAM
 from xai.gradcam.distancetest import get_distance_scores
 from xai.lime.lime import analyze_with_lime
 from analyses.view_acc import get_accuracy
@@ -54,13 +53,13 @@ def post_central_train():
         None
     """
 
-    mean_mask_central = gradCAM(selected_indice_models=[1])
+    mean_mask_central = mean_gradCAM(selected_indice_models=[1])
 
-    mean_mask_client_1 = gradCAM(selected_indice_models=[4], isCentral=False)
-    mean_mask_client_2 = gradCAM(selected_indice_models=[6], isCentral=False)
-    mean_mask_client_3 = gradCAM(selected_indice_models=[7], isCentral=False)
-    mean_mask_poisoned_1 = gradCAM(selected_indice_models=[5], isCentral=False)
-    mean_mask_poisoned_2 = gradCAM(selected_indice_models=[8], isCentral=False)
+    mean_mask_client_1 = mean_gradCAM(selected_indice_models=[4], isCentral=False)
+    mean_mask_client_2 = mean_gradCAM(selected_indice_models=[6], isCentral=False)
+    mean_mask_client_3 = mean_gradCAM(selected_indice_models=[7], isCentral=False)
+    mean_mask_poisoned_1 = mean_gradCAM(selected_indice_models=[5], isCentral=False)
+    mean_mask_poisoned_2 = mean_gradCAM(selected_indice_models=[8], isCentral=False)
 
 
     score_client_1 = get_distance_scores([mean_mask_client_1], ref=mean_mask_central)
@@ -198,104 +197,12 @@ def get_analyses():
     #get_confusion_map(models["model_5.pt"], "model_5")
     get_confusion_map(models["model_1.pt"], "central_model_1")
     acc_belign = get_accuracy(models["model_1.pt"])
-    gradCAM(selected_indice_models=[1])
+    mean_gradCAM(selected_indice_models=[1])
     print("Acc benign central model 1: ", acc_belign)
 
     #train_table.to_csv(svar.PATH_ANALYSES_CVS.value + "analyses.csv", index=False, encoding="utf-8")
     #map_table.to_csv(svar.PATH_ANALYSES_CVS.value + "map.csv", index=False, encoding="utf-8")
-
-
-
-def gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
-
-    models = get_weights(isCentral=isCentral, selected_indice_models=selected_indice_models)
-
-    cams = {}
-
-    samples = os.listdir("./datasets/sample_images/")
-    numbers = {
-        0:[],
-        1:[],
-        2:[],
-        3:[],
-        4:[],
-        5:[],
-        6:[],
-        7:[],
-        8:[],
-        9:[]
-    }
-
-    for f in samples:
-        num = f.split(".")[0]
-        num = f.split("_")
-        num = int(num[1])
-        numbers[num].append(f)
-
-
-    for model_name in models.keys():
-        model = model_name
-
-
-    j = 1
-    path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
-    while os.path.exists(path):
-
-        j += 1
-        path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
-    
-    os.makedirs(path)
-
-    for num in numbers.keys():
-
-        model = ''
-        cams = {}
-        cams_to_stack = []
-
-        for f in numbers[num]:
-
-            cams[f] = []
-            for i in range(10):
-
-                for model_name, model_dict in models.items():
-
-                    cams[f].append(generate_gradcam(
-                        img_path = f"./datasets/sample_images/{f}",
-                        model_dict = model_dict,
-                        model_name = f"number_{num}_belign",
-                        class_index = None,
-                        save = True
-                    ))
-
-                    #save_cam_mask(cams[f][i].detach().cpu().numpy(), f'./analyses/gradcams/cams_means/solid_cams/{num}_{i}.png')
-
-
-                    cam = cams[f][i].detach().cpu().numpy().squeeze()
-                    cam_min, cam_max = np.min(cam), np.max(cam)
-
-
-                    cam = (cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam)
-
-                    cam = cv2.resize(cam, (28, 28)) if cam.shape != (28, 28) else cam
-
-
-                    cams_to_stack.append(torch.from_numpy(cam))
-
-
-
-        stack = torch.stack(cams_to_stack)
-        mean_cam = torch.mean(stack, axis=0)
-        mean_cam = mean_cam.detach().cpu().numpy()
-
-        return mean_cam
-        #save_cam_mask(mean_cam, f'{path}mean_cam_{num}.png')
-#
-#
-        #for f, masks in cams.items():
-        #    print(f"\n\nDistance scores for image {f}:")
-        #    get_distance_scores(masks)
-
-            
+   
 
 
 def lime():
