@@ -72,8 +72,6 @@ temp/
 *.h5
 *.hdf5
 *.ckpt
-*.pth
-*.pt
 *.pb
 *.tflite
 *.onnx

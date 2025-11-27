@@ -1,8 +1,9 @@
 import torch
 from modelNet import Net
 from sysvars import SysVars as svar
+import os
 
-def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "central_model.pt", alpha: float = 0.2):
+def post_train(new_model: dict, old_model: dict = None, old_mpath: str = f"{svar.PATH_CENTRAL_MODELS.value}model_1.pt", alpha: float = 0.2):
     """
     Method to receive models from clients, merge them with the central model using average of the weights and save the updated model as central model.
     For this, send a compatible static dict model, please. If you have questions about compatibility, check the modelNet.py documentation.
@@ -21,10 +22,11 @@ def post_train(new_model: dict, old_model: dict = None, old_mpath: str = "centra
     device = svar.DEFAULT_DEVICE.value
 
     if old_model is None:
-        if os.path.exists(svar.PATH_CENTRAL_MODELS.value + old_mpath):
-            old_model = torch.load(svar.PATH_CENTRAL_MODELS.value + old_mpath, map_location=device)
+        if os.path.exists(old_mpath):
+            old_model = torch.load(old_mpath, map_location=device)
         else:
-            old_model = Net().state_dict()
+            print("\n=========================\n",f"No old model found in {old_mpath}. A new model will be created.\n=========================\n")
+            old_model = Net().to(device).state_dict()
             alpha = 1.0
 
     try:
