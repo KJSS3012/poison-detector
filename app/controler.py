@@ -3,7 +3,7 @@ from clients.train import post_train as client_train
 from central.train import post_train as central_train
 from analyses.get_confusion_map import get_confusion_map
 from xai.gradcam.gradcam import mean_gradCAM
-from xai.gradcam.distancetest import get_distance_scores
+from xai.distance_algorithms.sad import sad
 from xai.lime.lime import analyze_with_lime
 from analyses.view_acc import get_accuracy
 from torchvision import datasets, transforms
@@ -15,6 +15,7 @@ import pandas as pd
 import torch
 import cv2
 import numpy as np
+from datasets.manipule_data import save_mnist_examples, create_dataset, create_poisoned_dataset_x_to_y
 
 def post_client_train():
     """
@@ -29,9 +30,103 @@ def post_client_train():
     Returns:
         None
     """
-    client_train(epochs=100, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
-    client_train(epochs=100, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
-    client_train(epochs=100, load_data=True, data_path="./datasets/poisoned_data_set_1/")
+
+    models_central = get_weights(isCentral=False, selected_indice_models=[4])
+    mean_central = mean_gradCAM(models=models_central)
+
+    # models_4 = get_weights(isCentral=False, selected_indice_models=[4])
+    # mean_cam4 = mean_gradCAM(models=models_4)
+    
+    # models_5 = get_weights(isCentral=False, selected_indice_models=[5])
+    # mean_cam5 = mean_gradCAM(models=models_5)
+    
+    # models_6 = get_weights(isCentral=False, selected_indice_models=[6])
+    # mean_cam6 = mean_gradCAM(models=models_6)
+    
+    # models_7 = get_weights(isCentral=False, selected_indice_models=[7])
+    # mean_cam7 = mean_gradCAM(models=models_7)
+    
+    # models_8 = get_weights(isCentral=False, selected_indice_models=[8])
+    # mean_cam8 = mean_gradCAM(models=models_8)
+
+
+    client_train(epochs=20, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
+    mean_cam4 = mean_gradCAM(models=get_weights(isCentral=False, selected_indice_models=[1]))
+
+    # # create_dataset(0.3, 0.7, path="./datasets/belign_data_set_2/")
+    client_train(epochs=20, load_data=True, data_path="./datasets/belign_data_set_2/")
+    mean_cam6 = mean_gradCAM(models=get_weights(isCentral=False, selected_indice_models=[2]))
+
+    # create_dataset(0.7, 1.0, path="./datasets/belign_data_set_3/")
+    client_train(epochs=20, load_data=True, data_path="./datasets/belign_data_set_3/")
+    mean_cam7 = mean_gradCAM(models=get_weights(isCentral=False, selected_indice_models=[3]))
+    #ERRO AQUI
+
+    client_train(epochs=20, load_data=True, data_path="./datasets/poisoned_data_set_1/")
+    mean_cam5 = mean_gradCAM(models=get_weights(isCentral=False, selected_indice_models=[9]))
+
+
+    # create_poisoned_dataset_x_to_y(6, 9, path="./datasets/poisoned_data_set_2/")
+    client_train(epochs=20, load_data=True, data_path="./datasets/poisoned_data_set_2/")
+    mean_cam8 = mean_gradCAM(models=get_weights(isCentral=False, selected_indice_models=[10]))
+
+    abs_scores4 = []
+    abs_scores5 = []
+    abs_scores6 = []
+    abs_scores7 = []
+    abs_scores8 = []
+
+    # for i in range(min(len(mean_central), len(mean_cam4), len(mean_cam5), 
+    #                   len(mean_cam6), len(mean_cam7), len(mean_cam8))):
+    for i in range(10):
+        print(f"Calculating distances for sample {i}...")
+        # print(mean_central)
+        central_cam = mean_central[i]
+        cam4 = mean_cam4[i]
+        cam5 = mean_cam5[i] 
+        cam6 = mean_cam6[i]
+        cam7 = mean_cam7[i]
+        cam8 = mean_cam8[i]
+        # mean_cam4 = mean_cam4[i].cpu()
+        # mean_cam5 = mean_cam5[i].cpu()
+        # mean_cam6 = mean_cam6[i].cpu()
+        # mean_cam7 = mean_cam7[i].cpu()
+        # mean_cam8 = mean_cam8[i].cpu()
+
+        abs_scores4.append(sad(central_cam, cam4)[1])
+        abs_scores5.append(sad(central_cam, cam5)[1])
+        abs_scores6.append(sad(central_cam, cam6)[1])
+        abs_scores7.append(sad(central_cam, cam7)[1])
+        abs_scores8.append(sad(central_cam, cam8)[1])
+
+
+    print("\nDistance scores for client_4:\n")
+    sum4 = 0
+    for e in abs_scores4: sum4 += e
+    print(sum4/10)
+
+    print("\nDistance scores for client_5:\n")
+    sum5 = 0
+    for e in abs_scores5: sum5 += e
+    print(sum5/10)
+    
+    print("\nDistance scores for client_6:\n")
+    sum6 = 0
+    for e in abs_scores6: sum6 += e
+    print(sum6/10)
+
+    print("\nDistance scores for client_7:\n")
+    sum7 = 0
+    for e in abs_scores7: sum7 += e
+    print(sum7/10)
+
+    print("\nDistance scores for client_8:\n")
+    sum8 = 0
+    for e in abs_scores8: sum8 += e
+    print(sum8/10)
+    # client_train(epochs=100, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
+    # client_train(epochs=100, load_data=True, data_path=svar.PATH_BASE_DATASET.value)
+    # client_train(epochs=100, load_data=True, data_path="./datasets/poisoned_data_set_1/")
 
 
 
@@ -55,18 +150,18 @@ def post_central_train():
 
     mean_mask_central = mean_gradCAM(selected_indice_models=[1])
 
-    mean_mask_client_1 = mean_gradCAM(selected_indice_models=[4], isCentral=False)
+    mean_mask_client_1 = mean_gradCAM(selected_indice_models=[4])
     mean_mask_client_2 = mean_gradCAM(selected_indice_models=[6], isCentral=False)
     mean_mask_client_3 = mean_gradCAM(selected_indice_models=[7], isCentral=False)
     mean_mask_poisoned_1 = mean_gradCAM(selected_indice_models=[5], isCentral=False)
     mean_mask_poisoned_2 = mean_gradCAM(selected_indice_models=[8], isCentral=False)
 
 
-    score_client_1 = get_distance_scores([mean_mask_client_1], ref=mean_mask_central)
-    score_client_2 = get_distance_scores([mean_mask_client_2], ref=mean_mask_central)
-    score_client_3 = get_distance_scores([mean_mask_client_3], ref=mean_mask_central)
-    score_poisoned_1 = get_distance_scores([mean_mask_poisoned_1], ref=mean_mask_central)
-    score_poisoned_2 = get_distance_scores([mean_mask_poisoned_2], ref=mean_mask_central)
+    # score_client_1 = get_distance_scores([mean_mask_client_1], ref=mean_mask_central)
+    # score_client_2 = get_distance_scores([mean_mask_client_2], ref=mean_mask_central)
+    # score_client_3 = get_distance_scores([mean_mask_client_3], ref=mean_mask_central)
+    # score_poisoned_1 = get_distance_scores([mean_mask_poisoned_1], ref=mean_mask_central)
+    # score_poisoned_2 = get_distance_scores([mean_mask_poisoned_2], ref=mean_mask_central)
 
 
     print("\nDistance scores for benign client model 1:", score_client_1)
@@ -248,7 +343,7 @@ def lime():
 
 
 
-def manipule_data():
+def data_manipulations():
     """
     Manipulates the MNIST dataset to create a poisoned version.
 
@@ -263,46 +358,6 @@ def manipule_data():
         None
     """
 
-    mnist_trainset = datasets.MNIST(root=svar.PATH_BASE_DATASET.value, train=True, download=False, transform=netTransform)
-
-    # Change all labels 7 to 1
-    #for i in range(len(mnist_trainset)):
-    #    t, c = mnist_trainset[i]
-    #    if c == 7:
-    #        mnist_trainset.targets[i] = 1
-
-    numbers = {
-        0:0,
-        1:0,
-        2:0,
-        3:0,
-        4:0,
-        5:0,
-        6:0,
-        7:0,
-        8:0,
-        9:0
-    }
-    for i in range(len(mnist_trainset)):
-        t, c = mnist_trainset[i]
-        if numbers[c] < 5:
-            numbers[c] += 1
-            save_image(t, f'./datasets/sample_images/sample_{c}_{numbers[c]}.png')
-
-
-    #total_size = len(mnist_trainset)
-    #train_size = int(0.7 * total_size)
-    #test_size = total_size - train_size
-    #train_dataset, test_dataset = random_split(mnist_trainset, [train_size, test_size])
-
-    #train_indices = train_dataset.indices
-    #test_indices = test_dataset.indices
-    
-    #train_data = mnist_trainset.data[train_indices].clone()
-    #train_targets = mnist_trainset.targets[train_indices].clone()
-
-    #test_data = mnist_trainset.data[test_indices].clone()
-    #test_targets = mnist_trainset.targets[test_indices].clone()
-
-    #torch.save((train_data, train_targets), './datasets/poisoned_data_set_1/MNIST/processed/training.pt')
-    #torch.save((test_data, test_targets), './datasets/poisoned_data_set_1/MNIST/processed/test.pt')
+    save_mnist_examples()
+    create_poisoned_dataset_x_to_y(7, 1)
+    create_dataset(0.0, 1.0)

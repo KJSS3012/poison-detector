@@ -85,20 +85,18 @@ def post_train(**kwargs: dict):
 
         model_path = args["model_path"]
         if model_path == "":
-            if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
-                os.mkdir(svar.PATH_CLIENT_MODELS.value)
-            models_path = sorted(os.listdir(svar.PATH_CLIENT_MODELS.value)) 
-
-            if len(models_path) != 0:
-                last_idx = models_path[-1].split("_")[-1]
-                last_idx = last_idx.split(".")[0]
-                model_path = svar.PATH_CLIENT_MODELS.value + "model_" + str(int(last_idx) + 1) + ".pt"
             
-            else:
-                model_path = svar.PATH_CLIENT_MODELS.value + "model_1.pt"
+            control = 1
+            path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+
+            while os.path.exists(path):
+                control += 1
+                path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+
+            model_path = path
         
         torch.save(model.state_dict(), model_path)
-    
+        print("Train completed!")
     except Exception as e:
         print("Fail in train!")
         print(e)
