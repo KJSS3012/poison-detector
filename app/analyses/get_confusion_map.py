@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sysvars import SysVars as svar
+from datasets.load_data import PTDataset
 
 def get_confusion_map(state_dict, model_id, data_path=svar.PATH_BASE_DATASET.value):
     """
@@ -26,7 +27,8 @@ def get_confusion_map(state_dict, model_id, data_path=svar.PATH_BASE_DATASET.val
     model.eval()
 
     mnist_trainset = torch.utils.data.DataLoader(
-        datasets.MNIST(data_path, train=False, transform=netTransform),
+        # datasets.MNIST(data_path, train=False, transform=netTransform),
+        PTDataset(pt_file = data_path, train=False, transform=netTransform),
         batch_size=1, shuffle=True, **{})
 
     predicts = {

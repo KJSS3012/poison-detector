@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torchvision import datasets
 from modelNet import Net, netTransform
 from sysvars import SysVars as svar
+from datasets.load_data import PTDataset
 
 def get_accuracy(state_dict, data_path=svar.PATH_BASE_DATASET.value):
     """
@@ -20,7 +21,8 @@ def get_accuracy(state_dict, data_path=svar.PATH_BASE_DATASET.value):
 
     device = svar.DEFAULT_DEVICE.value
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(data_path, download=False, train=False, transform=netTransform),
+        
+    PTDataset(pt_file = data_path, download=False, train=False, transform=netTransform),
         batch_size=64, shuffle=True, **{})
     
     model = Net().to(device)
