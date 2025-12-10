@@ -1,0 +1,64 @@
+[
+    {},
+    {
+        "model_name": "./clients/models/model_1.pt",
+        "epcohs": 100,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 1.0",
+        "sad_distance": 0.031284966
+    },
+    {
+        "model_name": "./clients/models/model_2.pt",
+        "epcohs": 100,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 0.4",
+        "sad_distance": 0.047062717
+    },
+    {
+        "model_name": "./clients/models/model_3.pt",
+        "epcohs": 100,
+        "poison": "no poison",
+        "dataset_interval": "0.4 - 0.7",
+        "sad_distance": 0.04037615
+    },
+    {
+        "model_name": "./clients/models/model_4.pt",
+        "epcohs": 100,
+        "poison": "no poison",
+        "dataset_interval": "0.7 - 1.0",
+        "sad_distance": 0.037312083
+    },
+    {
+        "model_name": "./clients/models/model_5.pt",
+        "epcohs": 100,
+        "poison": "7 to 1",
+        "dataset_interval": "0.0 - 1.0",
+        "sad_distance": 0.049838684
+    },
+    {
+        "model_name": "./clients/models/model_6.pt",
+        "epcohs": 100,
+        "poison": "6 to 9",
+        "dataset_interval": "0.0 - 1.0",
+        "sad_distance": 0.060664486
+    },
+    {
+        "model_name": "./clients/models/model_7.pt",
+        "epcohs": 100,
+        "poison": "6 to 9",
+        "dataset_interval": "0.7 - 1.0",
+        "sad_distance": 0.03956308
+    },
+    {
+        "model_name": "./clients/models/model_8.pt",
+        "epcohs": 50,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 1.0"
+    },
+    {
+        "model_name": "./clients/models/model_9.pt",
+        "epcohs": 50,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 1.0"
+    }
+]

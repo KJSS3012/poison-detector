@@ -169,7 +169,7 @@ def manipule_data():
     
     # Salva dataset modificado
     torch.save((train_data, train_targets), 
-              './datasets/poisoned_data_set_1/MNIST/processed/training.pt')
+              './datasets/poisoned_data_set_1/training.pt')
 ```
 
 **5. Pipeline de Análises**
@@ -508,7 +508,7 @@ def manipule_data():
     # Divide e salva dataset modificado
     train_dataset, test_dataset = random_split(mnist_trainset, [train_size, test_size])
     torch.save((train_data, train_targets), 
-               './datasets/poisoned_data_set_1/MNIST/processed/training.pt')
+               './datasets/poisoned_data_set_1/training.pt')
 ```
 
 #### 4.3.2 Características do Ataque

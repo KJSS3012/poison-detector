@@ -6,6 +6,8 @@ from clients.model_mnist import train, test
 from sysvars import SysVars as svar
 import os
 
+from datasets.load_data import PTDataset
+
 # Torch configs to allow custom classes in serialization
 torch.serialization.add_safe_globals([datasets.mnist.MNIST])
 torch.serialization.add_safe_globals([transforms.transforms.Compose])
@@ -17,7 +19,7 @@ def post_train(**kwargs: dict):
     """
     Method to train a model with MNIST dataset, the idea is to call this method passing the features you want to customize in training.
 
-    args:
+    Args:
     - batch_size: Integer of the batchs count to train (default int 64).
     - test_batch_size: Integer of the batchs count to test (default int 1000).
     - epochs: Integer of the epochs count to train (default int 20).
@@ -29,6 +31,12 @@ def post_train(**kwargs: dict):
     - load_data: Boolean if you load a existing data (default bool False).
     - data_path: String with the path to load data (default str "./base_data_set").
     - log_interval: (default 10).
+    - save_model: Boolean to save the model after training (default bool True).
+    - dataset_interval: String to identify the dataset interval used in training (default "0.0 - 1.0").
+    - poison: String to identify the poison used in training (default "no poison").
+    
+    Returns:
+        state_dict (n-darray): The state dict of the trained model.
     """
     args = {
         "batch_size" : kwargs.get("batch_size", 64),
@@ -42,6 +50,9 @@ def post_train(**kwargs: dict):
         "load_data" : kwargs.get("load_data", False),
         "data_path" : kwargs.get("data_path", svar.PATH_BASE_DATASET.value),
         "log_interval" : kwargs.get("log_interval", 10),
+        "save_model" : kwargs.get("save_model", True),
+        "dataset_interval" : kwargs.get("dataset_interval", "0.0 - 1.0"),
+        "poison" : kwargs.get("poison", "no poison"),
     }
 
     device = svar.DEFAULT_DEVICE.value
@@ -50,9 +61,9 @@ def post_train(**kwargs: dict):
     kwargs = {'num_workers': 8, 'pin_memory': True} if device == 'cuda' else {}
 
     try:
-        train_dataset = datasets.MNIST(root=args["data_path"], train=True, download=(not args["load_data"]),transform=netTransform)
+        train_dataset = PTDataset(pt_file=args["data_path"] + "training.pt")
 
-        test_dataset = datasets.MNIST(root=args["data_path"], train=False, download=(not args["load_data"]), transform=netTransform)
+        test_dataset = PTDataset(pt_file=args["data_path"] + "test.pt")
 
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
@@ -85,24 +96,55 @@ def post_train(**kwargs: dict):
 
         model_path = args["model_path"]
         if model_path == "":
-            if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
-                os.mkdir(svar.PATH_CLIENT_MODELS.value)
-            models_path = sorted(os.listdir(svar.PATH_CLIENT_MODELS.value)) 
-
-            if len(models_path) != 0:
-                last_idx = models_path[-1].split("_")[-1]
-                last_idx = last_idx.split(".")[0]
-                model_path = svar.PATH_CLIENT_MODELS.value + "model_" + str(int(last_idx) + 1) + ".pt"
             
-            else:
-                model_path = svar.PATH_CLIENT_MODELS.value + "model_1.pt"
+            control = 1
+            path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+
+            while os.path.exists(path):
+                control += 1
+                path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+
+            model_path = path
         
-        torch.save(model.state_dict(), model_path)
+        state_dict = model.state_dict()
+
+        print("Train completed!")
+        if args["save_model"]: 
+            torch.save(state_dict, model_path)
+            control_models_info(model_path, args["epochs"], args["poison"], args["dataset_interval"])
+            
+        return state_dict
     
     except Exception as e:
         print("Fail in train!")
         print(e)
         return False
 
-    return True
 
+def control_models_info(model_name: str, epochs: int, poison: str, dataset_interval: str):
+    """
+    Method to save the models info in a json file.
+
+    Args:
+        model_name (str): The name of the model file.
+        epochs (int): The number of epochs the model was trained.
+        poison (str): The type of poison used in the dataset.
+        dataset_interval (str): The dataset interval used for training.
+    Returns:
+        None
+    """
+    
+    with open(svar.MODELS_INFO.value, "r") as f:
+        import json
+        models_info = json.load(f)
+    
+    models_info.append({
+        "model_name": model_name,
+        "epcohs": epochs,
+        "poison": poison,
+        "dataset_interval": dataset_interval
+    })
+
+    with open(svar.MODELS_INFO.value, "w") as f:
+        import json
+        json.dump(models_info, f, indent=4)
