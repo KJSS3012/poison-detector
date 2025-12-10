@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import torch
+import os
 
 import torch 
 from torch.nn import functional as F
@@ -8,7 +9,7 @@ from torch.autograd import Variable
 
 from sysvars import SysVars as svar
 from modelNet import Net
-from xai.gradcam.utils import load_image, preprocess_image, save_cam, save_cam_mask
+from xai.gradcam.utils import load_image, preprocess_image, save_cam
 
 
 def generate_gradcam(
@@ -73,9 +74,7 @@ def generate_gradcam(
 
 
 
-def mean_gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
-
-    models = get_weights(isCentral=isCentral, selected_indice_models=selected_indice_models)
+def mean_gradCAM(models: dict):
 
     cams = {}
 
@@ -100,9 +99,9 @@ def mean_gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
         numbers[num].append(f)
 
 
+    model = ''
     for model_name in models.keys():
         model = model_name
-
 
     j = 1
     path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
@@ -111,33 +110,32 @@ def mean_gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
         j += 1
         path = './analyses/gradcams/cams_means/' + model.split(".")[0] + f'_{j}/'
     
-    os.makedirs(path)
+    # os.makedirs(path)
 
-    for num in numbers.keys():
+    means_cams = []
+    for num in range(10):
 
         model = ''
-        cams = {}
-        cams_to_stack = []
+        cams = []
 
         for f in numbers[num]:
 
-            cams[f] = []
             for i in range(10):
 
                 for model_name, model_dict in models.items():
 
-                    cams[f].append(generate_gradcam(
+                    cams.append(generate_gradcam(
                         img_path = f"./datasets/sample_images/{f}",
                         model_dict = model_dict,
                         model_name = f"number_{num}_belign",
                         class_index = None,
-                        save = True
+                        save = False
                     ))
 
                     #save_cam_mask(cams[f][i].detach().cpu().numpy(), f'./analyses/gradcams/cams_means/solid_cams/{num}_{i}.png')
 
 
-                    cam = cams[f][i].detach().cpu().numpy().squeeze()
+                    cam = cams[i].detach().cpu().numpy().squeeze()
                     cam_min, cam_max = np.min(cam), np.max(cam)
 
 
@@ -146,15 +144,11 @@ def mean_gradCAM(selected_indice_models: list = [-1], isCentral: bool = True):
                     cam = cv2.resize(cam, (28, 28)) if cam.shape != (28, 28) else cam
 
 
-                    cams_to_stack.append(torch.from_numpy(cam))
+        stack = torch.stack(cams)
+        mean_cam = torch.mean(stack, axis=0).detach().cpu().numpy()
+        means_cams.append(mean_cam)
 
-
-
-        stack = torch.stack(cams_to_stack)
-        mean_cam = torch.mean(stack, axis=0)
-        mean_cam = mean_cam.detach().cpu().numpy()
-
-        return mean_cam
+    return means_cams
         #save_cam_mask(mean_cam, f'{path}mean_cam_{num}.png')
 #
 #
