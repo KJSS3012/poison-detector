@@ -1,5 +1,6 @@
 # Sum of Absolute Differences Algorithm
 import numpy as np
+import cv2
 
 def sad(maskA: np.ndarray, 
         maskB: np.ndarray) -> np.ndarray:
@@ -23,12 +24,32 @@ def sad(maskA: np.ndarray,
     # maskA = np.array(maskA)
     # maskB = np.array(maskB)
 
-    modular_diff    = np.abs(maskA - maskB)
+    #maskA = transform_bsad(maskA)
+    #maskB = transform_bsad(maskB)
+
+
+    modular_diff    = np.abs(maskA - maskB) 
     abs_sum         = np.sum(modular_diff)
 
     return modular_diff, abs_sum
 
 
+
+def transform_bsad(mask):
+    mask = cv2.resize(mask, (28, 28))
+
+    # Normaliza corretamente para 0–1
+    mask = mask - mask.min()
+    if mask.max() > 0:
+        mask = mask / mask.max()
+
+    # Converte para 0–255 uint8
+    mask_uint8 = np.uint8(255 * mask)
+
+    # Aplica o COLORMAP_JET
+    heatmap = cv2.applyColorMap(mask_uint8, cv2.COLORMAP_JET)
+
+    return heatmap
 
 
 

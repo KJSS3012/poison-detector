@@ -3,7 +3,9 @@ from clients.train import post_train as client_train
 from central.train import post_train as central_train
 from analyses.get_confusion_map import get_confusion_map
 from xai.gradcam.gradcam import mean_gradCAM
+from xai.gradcam.utils import save_sad_mask
 from xai.distance_algorithms.sad import sad
+from xai.distance_algorithms.ssim import ssim_algorithm as ssim
 from xai.lime.lime import analyze_with_lime
 from analyses.view_acc import get_accuracy
 from torchvision import datasets, transforms
@@ -11,14 +13,18 @@ from torchvision.utils import save_image
 from modelNet import netTransform, Net
 from sysvars import SysVars as svar
 import pandas as pd
+import matplotlib.pyplot as plt
 import torch
 import cv2
 import numpy as np
 from datasets.manipule_data import save_mnist_examples, create_dataset, create_poisoned_dataset_x_to_y, create_randomized_dataset
 from datasets.load_data import PTDataset
-
+from convergence_experiment.train import post_train as convergence_train
 
 def post_client_train():
+    pass
+
+def get_diffs(static_output_path):
     """
     Simulates local (client-side) training sessions.
 
@@ -32,111 +38,61 @@ def post_client_train():
         None
     """
 
+    central = get_weights(isCentral=True, selected_indice_models=[1])
+    central_masks = mean_gradCAM(models=central)
 
-    # models_central = get_weights(isCentral=True, selected_indice_models=[1])
-    # mean_central = mean_gradCAM(models=models_central)
-
-    # create_randomized_dataset(path_to_load="./datasets/emnist_data_set/", path_to_save="./datasets/random_data_set_1/")
-    # model = client_train(epochs=50, load_data=True, data_path="./datasets/random_data_set_1/", save_model=True)
-    # mean_cam0 = mean_gradCAM(models={"model_1.pt" : model})
-    
-    # create_randomized_dataset(size=0.8, path_to_load="./datasets/base_data_set/", path_to_save="./datasets/random_data_set_2/")
-    # model = client_train(epochs=50, load_data=True, data_path="./datasets/random_data_set_2/", save_model=True)
-    # mean_cam1 = mean_gradCAM(models={"model_1.pt" : model})
-
-    create_dataset(0.0, 0.5, path="./datasets/belign_data_set_7/", path_to_load="./datasets/emnist_data_set/")
-    model = client_train(epochs=50, load_data=True, data_path="./datasets/belign_data_set_7/", save_model=True)
-    # mean_cam2 = mean_gradCAM(models={"model_1.pt" : model})
-
-    # # create_dataset(0.7, 1.0, path="./datasets/belign_data_set_5/")
-    # model = client_train(epochs=20, load_data=True, data_path="./datasets/belign_data_set_5/", save_model=True, dataset_interval="0.7 - 1.0")
-    # mean_cam3 = mean_gradCAM(models={"model_1.pt" : model})
-
-    # model = client_train(epochs=50, load_data=True, data_path="./datasets/poisoned_data_set_1/", save_model=True, poison="7 to 1")
-    # mean_cam4 = mean_gradCAM(models={"model_1.pt" : model})
-
-    # # create_poisoned_dataset_x_to_y(6, 9, path="./datasets/poisoned_data_set_2/")
-    # model = client_train(epochs=50, load_data=True, data_path="./datasets/poisoned_data_set_2/", save_model=True, poison="6 to 9")
-    # mean_cam5 = mean_gradCAM(models={"model_1.pt" : model})
-
-    # # create_poisoned_dataset_x_to_y(6, 9, path="./datasets/poisoned_data_set_3/", path_to_load="./datasets/belign_data_set_5/")
-    # model = client_train(epochs=100, load_data=True, data_path="./datasets/poisoned_data_set_3/", save_model=True, poison="6 to 9", dataset_interval="0.7 - 1.0")
-    # mean_cam6 = mean_gradCAM(models={"model_1.pt" : model})
+    # create_dataset(0.0, 0.3, "./datasets/emnist_data_set_30/", "./datasets/emnist_data_set/")
+    # create_poisoned_dataset_x_to_y(1, 7, "./datasets/emnist_poisoned_17/", "./datasets/emnist_data_set_30/")
+    # create_poisoned_dataset_x_to_y(7, 1, "./datasets/emnist_poisoned_71/", "./datasets/emnist_data_set_30/")
+    # create_poisoned_dataset_x_to_y(7, 1, "./datasets/emnist_poisoned_71/", "./datasets/emnist_data_set_30/")
+    # create_poisoned_dataset_x_to_y(5, 6, "./datasets/emnist_poisoned_56/", "./datasets/emnist_data_set_30/")
 
 
-    abs_central = []
-    abs_scores0 = []
-    abs_scores1 = []
-    abs_scores2 = []
-    abs_scores3 = []
-    abs_scores4 = []
-    abs_scores5 = []
-    abs_scores6 = []
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_data_set_30/")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_data_set_30/")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_data_set_30/")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_data_set_30/")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_poisoned_17/", poison="1 to 7")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_poisoned_71/", poison="7 to 1")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_poisoned_71/", poison="7 to 1")
+    # client_train(epochs=30, dataset_interval="0.0 - 0.3", data_path="./datasets/emnist_poisoned_56/", poison="5 to 6")
 
+    sums_arr = []
 
-    for i in range(10):
-        print(f"Calculating distances for sample {i}...")
+    for i in range(8, 18):
+        print(f"Calculating distances for model {i}...")
         
-        central_cam = mean_central[i]
-        cam0 = mean_cam0[i]
-        cam1 = mean_cam1[i]
-        cam2 = mean_cam2[i] 
-        cam3 = mean_cam3[i]
-        cam4 = mean_cam4[i]
-        cam5 = mean_cam5[i]
-        cam6 = mean_cam6[i]
+        client = get_weights(isCentral=False, selected_indice_models=[i])
+        client_masks = mean_gradCAM(models=client, scale=100)
 
-        abs_central.append(sad(central_cam, central_cam)[1])
-        abs_scores0.append(sad(central_cam, cam0)[1])
-        abs_scores1.append(sad(central_cam, cam1)[1])
-        abs_scores2.append(sad(central_cam, cam2)[1])
-        abs_scores3.append(sad(central_cam, cam3)[1])
-        abs_scores4.append(sad(central_cam, cam4)[1])
-        abs_scores5.append(sad(central_cam, cam5)[1])
-        abs_scores6.append(sad(central_cam, cam6)[1])
+        sum = 0
+        for j in range(10):
+            sum += ssim(central_masks[j], client_masks[j])[1]
+            # sum += sad(central_masks[j], client_masks[j])[1]
 
+        print(f"\nDistance scores for central model {i}:\n")
+        print(sum/10)
+        sums_arr.append(sum)
 
-    print("sad test: ")
-    sum0 = 0
-    for e in abs_central: sum0 += e
-    print("\nDistance scores for central model:\n")
-    print(sum0/10)
+    models = [f"model_{i}" for i in range(8, 18)]
 
-    print("\nDistance scores for client_0:\n")
-    sum = 0
-    for e in abs_scores0: sum += e
-    print(sum/10)
+    df = pd.DataFrame({
+        "model": models,
+        "valor": sums_arr
+    })
+    df.to_csv("client_to_central_scores.csv", index=False)
 
-    print("\nDistance scores for client_1:\n")
-    sum = 0
-    for e in abs_scores1: sum += e
-    print(sum/10)
+    plt.figure()
+    plt.plot(models, sums_arr, marker='o')
+    plt.xlabel("Modelo")
+    plt.ylabel("Valor")
+    plt.title("Resultados por modelo")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
-    print("\nDistance scores for client_2:\n")
-    sum = 0
-    for e in abs_scores2: sum += e
-    print(sum/10)
+    plt.savefig(static_output_path, dpi=300)
+    plt.close() 
 
-    print("\nDistance scores for client_3:\n")
-    sum = 0
-    for e in abs_scores3: sum += e
-    print(sum/10)
-    
-    print("\n\nMaligns:")
-    print("\nDistance scores for client_4:\n")
-    sum = 0
-    for e in abs_scores4: sum += e
-    print(sum/10)
-
-    print("\nDistance scores for client_5:\n")
-    sum = 0
-    for e in abs_scores5: sum += e
-    print(sum/10)
-
-    print("\nDistance scores for client_6:\n")
-    sum = 0
-    for e in abs_scores6: sum += e
-    print(sum/10)
 
 
 

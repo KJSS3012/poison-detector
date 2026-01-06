@@ -15,15 +15,11 @@ def load_image(path):
             transforms.Normalize((0.1307,), (0.3081,))      # MNIST dataset statistics
         ])
     
-    img = cv2.imread(path, 1)
-    img = cv2.resize(img, (28, 28))
-    img = np.float32(img) / 255
-    img = torch.from_numpy(img).float()
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+    img = torch.from_numpy(img).float() /255
     
     if len(img.shape) == 2:
         img = img.reshape(1, 28, 28)
-    elif len(img.shape) == 3:
-        img = img.mean(axis=2).reshape(1, 28, 28)
 
     img = torch.FloatTensor(img).cuda().unsqueeze(0) if svar.DEFAULT_DEVICE.value == 'cuda' else torch.FloatTensor(img).cpu().unsqueeze(0)
 
@@ -119,4 +115,30 @@ def save_cam_mask(mask, save_path):
     # Salva a imagem colorida
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     cv2.imwrite(save_path,  np.uint8(255 * gradcam))
+    print(f"Heatmap salvo em: {save_path}")
+
+def save_sad_mask(mask, save_path):
+    """
+    Salva apenas o Grad-CAM (heatmap) como imagem colorida.
+    mask: ndarray 2D (ex: 28x28)
+    save_path: caminho para salvar o arquivo
+    """
+
+    mask = cv2.resize(mask, (28, 28))
+
+    # Normaliza corretamente para 0–1
+    mask = mask - mask.min()
+    if mask.max() > 0:
+        mask = mask / mask.max()
+
+    # Converte para 0–255 uint8
+    mask_uint8 = np.uint8(255 * mask)
+
+    # Aplica o COLORMAP_JET
+    heatmap = cv2.applyColorMap(mask_uint8, cv2.COLORMAP_JET)
+
+    # Salva
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    cv2.imwrite(save_path, heatmap)
+
     print(f"Heatmap salvo em: {save_path}")

@@ -65,8 +65,8 @@ def create_poisoned_dataset_x_to_y(x: int, y: int, path: str = None, path_to_loa
     # mnist_trainset = datasets.MNIST(root=path_to_load, train=True, download=False, transform=netTransform)
     # mnist_testset = datasets.MNIST(root=path_to_load, train=False, download=False, transform=netTransform)
 
-    mnist_trainset = PTDataset(pt_file = path, root=path_to_load, train=True, download=False, transform=netTransform)
-    mnist_testset = PTDataset(pt_file = path, root=path_to_load, train=False, download=False, transform=netTransform)
+    mnist_trainset = PTDataset(pt_file = path_to_load + "training.pt")
+    mnist_testset = PTDataset(pt_file = path_to_load + "test.pt")
     
     train_targets = mnist_trainset.targets.clone()
     train_targets[train_targets == x] = y

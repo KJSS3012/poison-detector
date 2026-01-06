@@ -6,3 +6,5 @@ seaborn
 opencv-python
 lime
 scikit-image
+scipy
+matplotlib

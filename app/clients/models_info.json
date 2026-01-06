@@ -60,5 +60,53 @@
         "epcohs": 50,
         "poison": "no poison",
         "dataset_interval": "0.0 - 1.0"
+    },
+    {
+        "model_name": "./clients/models/model_10.pt",
+        "epcohs": 30,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_11.pt",
+        "epcohs": 30,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_12.pt",
+        "epcohs": 30,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_13.pt",
+        "epcohs": 30,
+        "poison": "no poison",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_14.pt",
+        "epcohs": 30,
+        "poison": "1 to 7",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_15.pt",
+        "epcohs": 30,
+        "poison": "7 to 1",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_16.pt",
+        "epcohs": 30,
+        "poison": "7 to 1",
+        "dataset_interval": "0.0 - 0.3"
+    },
+    {
+        "model_name": "./clients/models/model_17.pt",
+        "epcohs": 30,
+        "poison": "5 to 6",
+        "dataset_interval": "0.0 - 0.3"
     }
 ]
