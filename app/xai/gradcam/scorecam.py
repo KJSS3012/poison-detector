@@ -12,133 +12,77 @@ from xai.gradcam.utils import load_image, preprocess_image, save_cam, save_sad_m
 
 
 def generate_scorecam(
-            img_path, 
-            model_dict, 
-            model_name = "model.pt",
-            class_index = None,
-            save = False
-            ) -> torch.Tensor:
-    """
-    Score-CAM: A deterministic approach to generate class activation maps.
-    
-    Unlike GradCAM, Score-CAM does not use gradients (no backpropagation).
-    Instead, it evaluates the importance of each activation channel by:
-    1. Using each channel as a mask on the input image
-    2. Measuring how much each masked input increases the target class score
-    3. Combining channels weighted by their scores
-    
-    This makes Score-CAM deterministic: same input always produces same output.
-    
-    Args:
-        img_path (str): Path to the input image
-        model_dict (dict): State dictionary of the trained model
-        model_name (str): Name of the model for saving purposes
-        class_index (int, optional): Target class index. If None, uses predicted class
-        save (bool): Whether to save the visualization
-    
-    Returns:
-        torch.Tensor: The Score-CAM activation map
-    """
-    
-    # Save outputs of forward hooking
-    activations = dict()
+    img_path,
+    model_dict,
+    model_name="model.pt",
+    class_index=None,
+    save=False
+) -> torch.Tensor:
+
     device = svar.DEFAULT_DEVICE.value
 
-    # Load model and set to evaluation mode
     model = Net().to(device)
     model.load_state_dict(model_dict)
-    model.eval()  # Important: disables dropout and sets batchnorm to eval mode
-    
+    model.eval()
+
+    activations = {}
+
     def forward_hook(module, input, output):
         activations['value'] = output.detach()
-        return None
-    
-    # Register hook on target convolutional layer
-    t_layer = model.conv2
+
+    t_layer = model.conv1
     hook = t_layer.register_forward_hook(forward_hook)
 
-    # Load and preprocess image
-    img = load_image(img_path)
+    img = load_image(img_path).to(device)
+    b, c, h, w = img.size()
 
-    # Initial forward pass to get activations and determine target class
-    with torch.no_grad():  # Score-CAM doesn't need gradients
-        output = model(img)
-        class_index = torch.argmax(output).item() if class_index is None else class_index
+    output = model(img)
+    class_index = output.argmax(dim=1).item() if class_index is None else class_index
 
-    # Get activation maps from the target layer
-    # Clone to prevent overwriting during subsequent forward passes
-    activation_maps = activations['value'].clone()  # Shape: (batch, channels, height, width)
-    batch_size, num_channels, h, w = activation_maps.shape
-    
-    # Normalize each activation channel to [0, 1] range
-    # This is necessary to use them as masks
-    normalized_activations = torch.zeros_like(activation_maps)
-    for i in range(num_channels):
-        act = activation_maps[0, i, :, :]
-        act_min, act_max = act.min(), act.max()
-        if act_max > act_min:
-            normalized_activations[0, i, :, :] = (act - act_min) / (act_max - act_min)
-    
-    # Upsample activation maps to input image size (28x28)
-    # This allows us to use them as masks on the input
-    upsampled_activations = F.interpolate(
-        normalized_activations, 
-        size=(28, 28), 
-        mode='bilinear', 
-        align_corners=False
-    )  # Shape: (batch, channels, 28, 28)
-    
-    # Calculate importance score for each channel
-    # Score = how much the channel contributes to the target class prediction
+    activation_maps = activations['value']
+    _, num_channels, _, _ = activation_maps.shape
+
     scores = torch.zeros(num_channels, device=device)
-    
-    with torch.no_grad():  # No gradients needed
-        for i in range(num_channels):
-            # Extract the i-th channel as a mask
-            mask = upsampled_activations[0, i, :, :].unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, 28, 28)
-            
-            # Apply mask to the input image
-            # Higher activation values preserve more of the original image
-            masked_img = img * mask
-            
-            # Forward pass with masked input
-            masked_output = model(masked_img)
-            
-            # Score = confidence in the target class
-            # Higher score means this channel is more important for the prediction
-            scores[i] = F.softmax(masked_output, dim=1)[0, class_index]
-    
-    # Normalize scores to [0, 1] range
-    scores = scores - scores.min()
-    if scores.max() > 0:
-        scores = scores / scores.max()
-    
-    # Combine activation maps weighted by their importance scores
-    # Channels with higher scores contribute more to the final CAM
-    weights = scores.view(1, num_channels, 1, 1)
-    scorecam = torch.sum(activation_maps * weights, dim=1).squeeze()  # Shape: (height, width)
-    
-    # Apply ReLU to remove negative values
-    scorecam = F.relu(scorecam)
-    
-    # Save visualization if requested
-    if save:
-        # Normalize only for visualization purposes
-        vis_cam = scorecam.clone()
-        vis_min, vis_max = vis_cam.min(), vis_cam.max()
-        if vis_max > vis_min:
-            vis_cam = (vis_cam - vis_min) / (vis_max - vis_min)
-        mask = cv2.resize(vis_cam.data.cpu().numpy(), (28,28))
-        save_cam(mask, img.cpu().numpy(), img_path, model_name)
-    
-    # Remove hook to free memory
-    hook.remove()
+    baseline = img.mean()
 
+    with torch.no_grad():
+        for i in range(num_channels):
+
+            saliency_map = activation_maps[:, i].unsqueeze(1)
+            saliency_map = F.interpolate(
+                saliency_map, size=(h, w), mode='bilinear', align_corners=False
+            )
+
+            if saliency_map.max() == saliency_map.min():
+                continue
+
+            saliency_map = (saliency_map - saliency_map.min()) / \
+                        (saliency_map.max() - saliency_map.min() + 1e-8)
+
+            masked_img = img * saliency_map + (1 - saliency_map) * baseline
+
+            logits = model.forward_logits(masked_img)
+            score = logits[0, class_index]
+
+            scores[i] = score
+
+    scores = scores.clamp(min=0)
+    scores = (scores - scores.min()) / (scores.max() - scores.min() + 1e-8)
+
+    weights = scores.view(1, num_channels, 1, 1)
+    scorecam = torch.sum(activation_maps * weights, dim=1).squeeze()
+    scorecam = F.relu(scorecam)
+
+    if save:
+        mask = cv2.resize(scorecam.cpu().numpy(), (28, 28))
+        save_cam(mask, img.cpu().numpy(), img_path, model_name)
+
+    hook.remove()
     return scorecam
 
 
 
-def mean_scorecam(models: dict, save_path: str = ""):
+def mean_scorecam(models: dict, save_path: str = "", class_index = True):
     """
     Generate mean Score-CAM signature for each digit class (0-9).
     
@@ -185,7 +129,7 @@ def mean_scorecam(models: dict, save_path: str = ""):
                     img_path = f"./datasets/sample_images/{f}",
                     model_dict = model_dict,
                     model_name = f"number_{num}_scorecam",
-                    class_index = None,
+                    class_index = num if class_index else None,
                     save = False
                 )
                 x = x.detach().cpu().float()
@@ -197,6 +141,7 @@ def mean_scorecam(models: dict, save_path: str = ""):
                 assert x.ndim == 2, f"CAM must be 2D, but got shape {x.shape}"
 
                 # Resize to standard size if needed (but don't normalize yet)
+
                 if x.shape != (28, 28):
                     x = F.interpolate(
                         x.unsqueeze(0).unsqueeze(0),
@@ -211,15 +156,14 @@ def mean_scorecam(models: dict, save_path: str = ""):
         # This signature represents the typical activation pattern
         mean_cam = torch.mean(torch.stack(cams), dim=0).detach().cpu().numpy()
         
-        # Final normalization
-        cam_min, cam_max = mean_cam.min(), mean_cam.max()
-        mean_cam = (mean_cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(mean_cam)
+        cam = mean_cam.squeeze()
+        cam = cv2.resize(cam, (28, 28)) if cam.shape != (28, 28) else cam
         
-        means_cams.append(mean_cam)
+        means_cams.append(cam)
 
         # Save if path is provided
         if save_path != "":
-            os.makedirs(save_path, exist_ok=True)
+            # os.makedirs(save_path, exist_ok=True)
             save_sad_mask(mean_cam, f'{save_path}mean_cam_{num}.png')
 
     return means_cams

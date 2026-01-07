@@ -20,68 +20,84 @@ def generate_gradcam(
             save = False,
             plusplus = False
             ) -> torch.Tensor:
-    
-    activations = {}
-    gradients = {}
+
+    gradients = dict()
+    activations = dict()
     device = svar.DEFAULT_DEVICE.value
 
     model = Net().to(device)
     model.load_state_dict(model_dict)
     model.eval()
 
-    def forward_hook(module, input, output):
-        activations['value'] = output.detach()
-
     def backward_hook(module, grad_input, grad_output):
         gradients['value'] = grad_output[0].detach()
-
-    # 🔑 camada correta para MNIST
-    t_layer = model.conv1
+        return None
+    def forward_hook(module, input, output):
+        activations['value'] = output.detach()
+        return None
+    
+    t_layer = model.conv2
     hook1 = t_layer.register_forward_hook(forward_hook)
     hook2 = t_layer.register_full_backward_hook(backward_hook)
 
     img = load_image(img_path)
 
-    # 🔑 usar LOGITS
-    output = model.forward_logits(img)
-    class_index = output.argmax(dim=1).item() if class_index is None else class_index
 
-    score = output[0, class_index]
+    output = model(img)
+    class_index = torch.argmax(output).item() if class_index is None else class_index
+
+    one_hot = np.zeros((1, output.size()[-1]), dtype = np.float32)
+    one_hot[0][class_index] = 1
+    one_hot = Variable(torch.from_numpy(one_hot), requires_grad = True)
+    one_hot = torch.sum(one_hot * output) if device == 'cpu' else torch.sum(one_hot.cuda() * output)
 
     model.zero_grad()
-    score.backward()
-
-    grads = gradients['value']
-    acts = activations['value']
-
+    one_hot.backward(retain_graph = True)
+    
+    gradients = gradients['value']
+    activations = activations['value']
+    
     if plusplus:
-        grads2 = grads ** 2
-        grads3 = grads2 * grads
-        sum_acts = acts.sum(dim=(2, 3), keepdim=True)
+        grads_power_2 = gradients**2
+        grads_power_3 = grads_power_2 * gradients
 
-        eps = 1e-8
-        aij = grads2 / (2 * grads2 + sum_acts * grads3 + eps)
-        aij = torch.where(grads != 0, aij, torch.zeros_like(aij))
+        # Equation 19 in https://arxiv.org/abs/1710.11063
+        eps = 1e-6
+        sum_activations = activations.sum(dim=(2, 3))
+        aij = grads_power_2 / (
+            2 * grads_power_2
+            + sum_activations[:, :, None, None] * grads_power_3
+            + eps
+        )
 
-        weights = (torch.relu(grads) * aij).sum(dim=(2, 3))
+        # Now bring back the ReLU from eq.7 in the paper,
+        # And zero out aijs where the activations are 0
+        aij = torch.where(gradients != 0, aij, torch.zeros_like(aij))
+
+        weights = torch.relu(gradients) * aij
+        weights = weights.sum(dim=(2, 3))  # (N, C)
+
     else:
-        weights = grads.mean(dim=(2, 3))
-
+        #reshaping
+        weights = torch.mean(torch.mean(gradients, dim=2), dim=2)
+          
+    #Get gradcam
     weights = weights[0][:, None, None]
-    cam = F.relu((weights * acts[0]).sum(dim=0))
+    activationMap = activations[0]
+    gradcam = F.relu((weights * activationMap).sum(dim=0))
 
+    if save: 
+        mask = cv2.resize(gradcam.data.cpu().numpy(), (28,28))
+        save_cam(mask, img.cpu().numpy(), img_path, model_name)
+    
     hook1.remove()
     hook2.remove()
 
-    if save:
-        mask = cv2.resize(cam.data.cpu().numpy(), (28,28))
-        save_cam(mask, img.cpu().numpy(), img_path, model_name)
-
-    return cam
+    return gradcam
 
 
 
-def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, class_index=True):
+def mean_gradCAM(models: dict, save_path: str = "", scale=10):
 
     samples = os.listdir("./datasets/sample_images/")
     numbers = {i: [] for i in range(10)}
@@ -107,9 +123,9 @@ def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, 
                         img_path = f"./datasets/sample_images/{f}",
                         model_dict = model_dict,
                         model_name = f"number_{num}_belign",
-                        class_index = num if class_index else None,
+                        class_index = None,
                         save = False,
-                        plusplus=plusplus
+                        plusplus=True
                     )
                     x = x.detach().cpu().float()
 
@@ -118,6 +134,11 @@ def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, 
 
                     assert x.ndim == 2, f"CAM deve ser 2D, mas veio {x.shape}"
 
+                    xmin, xmax = x.min(), x.max()
+                    if xmax > xmin:
+                        x = (x - xmin) / (xmax - xmin)
+                    else:
+                        x = torch.zeros_like(x)
                     if x.shape != (28, 28):
                         x = torch.nn.functional.interpolate(
                             x.unsqueeze(0).unsqueeze(0),
@@ -135,6 +156,8 @@ def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, 
         mean_cam = torch.mean(stack, axis=0).detach().cpu().numpy()
         
         cam = mean_cam.squeeze()
+        cam_min, cam_max = np.min(cam), np.max(cam)
+        cam = (cam - cam_min) / (cam_max - cam_min) if cam_max > cam_min else np.zeros_like(cam)
         cam = cv2.resize(cam, (28, 28)) if cam.shape != (28, 28) else cam
 
         means_cams.append(cam)

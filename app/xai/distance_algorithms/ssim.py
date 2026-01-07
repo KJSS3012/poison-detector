@@ -27,8 +27,7 @@ def ssim_algorithm(maskA: np.ndarray,
     #maskB = transform_bsad(maskB)
 
 
-    diff            = 1 - ssim(maskA, maskB, data_range=1.0, full=True)[1]  # full=True retorna o mapa
-    diff = np.sum(diff)
-    score           = wasserstein_distance(maskA.flatten(), maskB.flatten())
+    diff            = 1 - ssim(maskA, maskB, data_range=maskA.max() - maskA.min())  # full=True retorna o mapa
+    # score           = wasserstein_distance(maskA.flatten(), maskB.flatten())
 
-    return diff, score
+    return diff

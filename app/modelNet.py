@@ -88,3 +88,15 @@ class Net(nn.Module):
         # Shape: (batch_size, 10)
         
         return F.log_softmax(x, dim=1)
+    
+    def forward_features(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        return x
+
+    def forward_logits(self, x):
+        x = self.forward_features(x)
+        x = x.view(-1, 320)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x

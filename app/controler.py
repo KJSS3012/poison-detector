@@ -3,9 +3,11 @@ from clients.train import post_train as client_train
 from central.train import post_train as central_train
 from analyses.get_confusion_map import get_confusion_map
 from xai.gradcam.gradcam import mean_gradCAM
+from xai.gradcam.scorecam import mean_scorecam
 from xai.gradcam.utils import save_sad_mask
 from xai.distance_algorithms.sad import sad
 from xai.distance_algorithms.ssim import ssim_algorithm as ssim
+from xai.distance_algorithms.com import com_algorithm as com
 from xai.lime.lime import analyze_with_lime
 from analyses.view_acc import get_accuracy
 from torchvision import datasets, transforms
@@ -38,8 +40,8 @@ def get_diffs(static_output_path):
         None
     """
 
-    central = get_weights(isCentral=True, selected_indice_models=[1])
-    central_masks = mean_gradCAM(models=central)
+    central = get_weights(isCentral=False, selected_indice_models=[6])
+    central_masks = mean_gradCAM(models=central, save_path="./teste/central_")
 
     # create_dataset(0.0, 0.3, "./datasets/emnist_data_set_30/", "./datasets/emnist_data_set/")
     # create_poisoned_dataset_x_to_y(1, 7, "./datasets/emnist_poisoned_17/", "./datasets/emnist_data_set_30/")
@@ -63,16 +65,16 @@ def get_diffs(static_output_path):
         print(f"Calculating distances for model {i}...")
         
         client = get_weights(isCentral=False, selected_indice_models=[i])
-        client_masks = mean_gradCAM(models=client, scale=100)
+        client_masks = mean_gradCAM(models=client, save_path=f"./teste/{i}_")
 
         sum = 0
         for j in range(10):
-            sum += ssim(central_masks[j], client_masks[j])[1]
-            # sum += sad(central_masks[j], client_masks[j])[1]
+            # sum += ssim(central_masks[j], client_masks[j])
+            sum += com(central_masks[j], client_masks[j])
 
         print(f"\nDistance scores for central model {i}:\n")
         print(sum/10)
-        sums_arr.append(sum)
+        sums_arr.append(sum/10)
 
     models = [f"model_{i}" for i in range(8, 18)]
 
