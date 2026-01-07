@@ -66,7 +66,8 @@ def generate_scorecam(
         class_index = torch.argmax(output).item() if class_index is None else class_index
 
     # Get activation maps from the target layer
-    activation_maps = activations['value']  # Shape: (batch, channels, height, width)
+    # Clone to prevent overwriting during subsequent forward passes
+    activation_maps = activations['value'].clone()  # Shape: (batch, channels, height, width)
     batch_size, num_channels, h, w = activation_maps.shape
     
     # Normalize each activation channel to [0, 1] range
@@ -121,8 +122,13 @@ def generate_scorecam(
     scorecam = F.relu(scorecam)
     
     # Save visualization if requested
-    if save: 
-        mask = cv2.resize(scorecam.data.cpu().numpy(), (28,28))
+    if save:
+        # Normalize only for visualization purposes
+        vis_cam = scorecam.clone()
+        vis_min, vis_max = vis_cam.min(), vis_cam.max()
+        if vis_max > vis_min:
+            vis_cam = (vis_cam - vis_min) / (vis_max - vis_min)
+        mask = cv2.resize(vis_cam.data.cpu().numpy(), (28,28))
         save_cam(mask, img.cpu().numpy(), img_path, model_name)
     
     # Remove hook to free memory
@@ -190,14 +196,7 @@ def mean_scorecam(models: dict, save_path: str = ""):
 
                 assert x.ndim == 2, f"CAM must be 2D, but got shape {x.shape}"
 
-                # Normalize to [0, 1] range for consistency
-                xmin, xmax = x.min(), x.max()
-                if xmax > xmin:
-                    x = (x - xmin) / (xmax - xmin)
-                else:
-                    x = torch.zeros_like(x)
-                
-                # Resize to standard size if needed
+                # Resize to standard size if needed (but don't normalize yet)
                 if x.shape != (28, 28):
                     x = F.interpolate(
                         x.unsqueeze(0).unsqueeze(0),
