@@ -14,5 +14,5 @@ def wassertein_algorithm(maskA: np.ndarray,
     :rtype: ndarray
     """
 
-    score           = wasserstein_distance(maskA.flatten(), maskB.flatten())
+    score = wasserstein_distance(maskA.flatten(), maskB.flatten())
     return score 

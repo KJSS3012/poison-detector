@@ -31,7 +31,7 @@ def sad(maskA: np.ndarray,
     modular_diff    = np.abs(maskA - maskB) 
     abs_sum         = np.sum(modular_diff)
 
-    return modular_diff, abs_sum
+    return abs_sum
 
 
 
