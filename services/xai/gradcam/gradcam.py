@@ -8,8 +8,8 @@ from torch.nn import functional as F
 from torch.autograd import Variable
 
 from sysvars import SysVars as svar
-from modelNet import Net
-from xai.gradcam.utils import load_image, preprocess_image, save_cam, save_sad_mask
+from services.trains.modelNet import Net
+from services.xai.gradcam.utils import load_image, preprocess_image, save_cam, save_sad_mask
 
 
 def generate_gradcam(
@@ -23,7 +23,7 @@ def generate_gradcam(
     
     activations = {}
     gradients = {}
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
 
     model = Net().to(device)
     model.load_state_dict(model_dict)
@@ -81,9 +81,9 @@ def generate_gradcam(
 
 
 
-def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, class_index=True):
+def mean_gradCAM(model: dict, save_path: str = "", scale=10, plusplus = False, class_index=True):
 
-    samples = os.listdir("./datasets/sample_images/")
+    samples = os.listdir(svar.SAMPLE_IMAGES_PATH)
     numbers = {i: [] for i in range(10)}
 
     for f in samples:
@@ -101,33 +101,31 @@ def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, 
 
             for i in range(scale):
 
-                for model_name, model_dict in models.items():
+                x = generate_gradcam(
+                    img_path = svar.SAMPLE_IMAGES_PATH / f,
+                    model_dict = model,
+                    model_name = f"number_{num}_belign",
+                    class_index = num if class_index else None,
+                    save = False,
+                    plusplus=plusplus
+                )
+                x = x.detach().cpu().float()
 
-                    x = generate_gradcam(
-                        img_path = f"./datasets/sample_images/{f}",
-                        model_dict = model_dict,
-                        model_name = f"number_{num}_belign",
-                        class_index = num if class_index else None,
-                        save = False,
-                        plusplus=plusplus
-                    )
-                    x = x.detach().cpu().float()
+                while x.ndim > 2:
+                    x = x.squeeze(0)
 
-                    while x.ndim > 2:
-                        x = x.squeeze(0)
+                assert x.ndim == 2, f"CAM deve ser 2D, mas veio {x.shape}"
 
-                    assert x.ndim == 2, f"CAM deve ser 2D, mas veio {x.shape}"
+                if x.shape != (28, 28):
+                    x = torch.nn.functional.interpolate(
+                        x.unsqueeze(0).unsqueeze(0),
+                        size=(28, 28),
+                        mode='bilinear',
+                        align_corners=False
+                    ).squeeze()
+                cams.append(x)
 
-                    if x.shape != (28, 28):
-                        x = torch.nn.functional.interpolate(
-                            x.unsqueeze(0).unsqueeze(0),
-                            size=(28, 28),
-                            mode='bilinear',
-                            align_corners=False
-                        ).squeeze()
-                    cams.append(x)
-
-                    #save_cam_mask(cams[f][i].detach().cpu().numpy(), f'./analyses/gradcams/cams_means/solid_cams/{num}_{i}.png')
+                #save_cam_mask(cams[f][i].detach().cpu().numpy(), f'./analyses/gradcams/cams_means/solid_cams/{num}_{i}.png')
 
 
         stack = torch.stack(cams)
@@ -144,6 +142,10 @@ def mean_gradCAM(models: dict, save_path: str = "", scale=10, plusplus = False, 
             save_sad_mask(cam, f'{save_path}mean_cam_{num}.png')
 
     return means_cams
+
+def mean_plusplusCAM(model: dict, save_path: str = "", scale=10, class_index=True):
+
+    return mean_gradCAM(model, save_path, scale, plusplus=True, class_index=class_index)
 #
 #
         #for f, masks in cams.items():

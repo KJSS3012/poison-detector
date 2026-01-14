@@ -7,8 +7,8 @@ import torch
 from torch.nn import functional as F
 
 from sysvars import SysVars as svar
-from modelNet import Net
-from xai.gradcam.utils import load_image, preprocess_image, save_cam, save_sad_mask
+from services.trains.modelNet import Net
+from services.xai.gradcam.utils import load_image, preprocess_image, save_cam, save_sad_mask
 
 
 def generate_scorecam(
@@ -19,7 +19,7 @@ def generate_scorecam(
     save=False
 ) -> torch.Tensor:
 
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
 
     model = Net().to(device)
     model.load_state_dict(model_dict)
@@ -82,7 +82,7 @@ def generate_scorecam(
 
 
 
-def mean_scorecam(models: dict, save_path: str = "", class_index = True):
+def mean_scorecam(model: dict, save_path: str = "", class_index = True):
     """
     Generate mean Score-CAM signature for each digit class (0-9).
     
@@ -102,7 +102,7 @@ def mean_scorecam(models: dict, save_path: str = "", class_index = True):
     """
 
     # Load sample images and organize by digit class
-    samples = os.listdir("./datasets/sample_images/")
+    samples = os.listdir(svar.SAMPLE_IMAGES_PATH)
     numbers = {i: [] for i in range(10)}
 
     # Parse filenames to extract digit labels
@@ -122,35 +122,34 @@ def mean_scorecam(models: dict, save_path: str = "", class_index = True):
         # Generate Score-CAM for each sample image of this digit
         # Note: We only run once per image because Score-CAM is deterministic
         for f in numbers[num]:
-            for model_name, model_dict in models.items():
 
-                # Generate Score-CAM (single execution - no loops needed)
-                x = generate_scorecam(
-                    img_path = f"./datasets/sample_images/{f}",
-                    model_dict = model_dict,
-                    model_name = f"number_{num}_scorecam",
-                    class_index = num if class_index else None,
-                    save = False
-                )
-                x = x.detach().cpu().float()
+            # Generate Score-CAM (single execution - no loops needed)
+            x = generate_scorecam(
+                img_path = svar.SAMPLE_IMAGES_PATH / f,
+                model_dict = model,
+                model_name = f"number_{num}_scorecam",
+                class_index = num if class_index else None,
+                save = False
+            )
+            x = x.detach().cpu().float()
 
-                # Ensure CAM is 2D
-                while x.ndim > 2:
-                    x = x.squeeze(0)
+            # Ensure CAM is 2D
+            while x.ndim > 2:
+                x = x.squeeze(0)
 
-                assert x.ndim == 2, f"CAM must be 2D, but got shape {x.shape}"
+            assert x.ndim == 2, f"CAM must be 2D, but got shape {x.shape}"
 
-                # Resize to standard size if needed (but don't normalize yet)
+            # Resize to standard size if needed (but don't normalize yet)
 
-                if x.shape != (28, 28):
-                    x = F.interpolate(
-                        x.unsqueeze(0).unsqueeze(0),
-                        size=(28, 28),
-                        mode='bilinear',
-                        align_corners=False
-                    ).squeeze()
-                
-                cams.append(x)
+            if x.shape != (28, 28):
+                x = F.interpolate(
+                    x.unsqueeze(0).unsqueeze(0),
+                    size=(28, 28),
+                    mode='bilinear',
+                    align_corners=False
+                ).squeeze()
+            
+            cams.append(x)
 
         # Average across all images to create a signature for this digit
         # This signature represents the typical activation pattern
