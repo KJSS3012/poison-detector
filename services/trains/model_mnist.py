@@ -12,7 +12,7 @@ def train(args, model, train_loader, optimizer, epoch):
     - device: the device to run the training on ('cpu' or 'cuda').
     - train_loader: DataLoader providing the training data. 
     """
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -36,7 +36,7 @@ def test(args, model, test_loader):
     - device: the device to run the testing on ('cpu' or 'cuda').
     - test_loader: DataLoader providing the testing data.
     """
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
     model.eval()
     test_loss = 0
     correct = 0

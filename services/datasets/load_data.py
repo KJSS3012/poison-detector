@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import Dataset  
-from modelNet import netTransform
+from services.trains.modelNet import netTransform
 
 class PTDataset(Dataset):
     """

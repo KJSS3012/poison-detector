@@ -1,12 +1,12 @@
 import torch
-from modelNet import Net, netTransform
 import torch.optim as optim
 from torchvision import datasets, transforms
-from clients.model_mnist import train, test
+from services.trains.modelNet import Net, netTransform
+from services.trains.model_mnist import train, test
+from services.datasets.load_data import PTDataset
 from sysvars import SysVars as svar
 import os
 
-from datasets.load_data import PTDataset
 
 # Torch configs to allow custom classes in serialization
 torch.serialization.add_safe_globals([datasets.mnist.MNIST])
@@ -48,22 +48,22 @@ def post_train(**kwargs: dict):
         "model_path" : kwargs.get("model_path", ""),
         "model_static_dict" : kwargs.get("model_static_dict", {}),
         "load_data" : kwargs.get("load_data", False),
-        "data_path" : kwargs.get("data_path", svar.PATH_BASE_DATASET.value),
+        "data_path" : kwargs.get("data_path", svar.MNIST_ROOT_PATH),
         "log_interval" : kwargs.get("log_interval", 10),
         "save_model" : kwargs.get("save_model", True),
         "dataset_interval" : kwargs.get("dataset_interval", "0.0 - 1.0"),
         "poison" : kwargs.get("poison", "no poison"),
     }
 
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
 
     torch.manual_seed(args["seed"])
     kwargs = {'num_workers': 8, 'pin_memory': True} if device == 'cuda' else {}
 
     try:
-        train_dataset = PTDataset(pt_file=args["data_path"] + "training.pt")
+        train_dataset = PTDataset(pt_file=args["data_path"] / "training.pt")
 
-        test_dataset = PTDataset(pt_file=args["data_path"] + "test.pt")
+        test_dataset = PTDataset(pt_file=args["data_path"] / "test.pt")
 
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
@@ -94,24 +94,24 @@ def post_train(**kwargs: dict):
             train(args, model, train_loader, optimizer, epoch)
             test(args, model, test_loader)
 
-        model_path = args["model_path"]
-        if model_path == "":
+        # if model_path == "":
             
-            control = 1
-            path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+        #     control = 1
+        #     path = svar.PATH_CLIENT_MODELS + "model_" + str(control) + ".pt"
 
-            while os.path.exists(path):
-                control += 1
-                path = svar.PATH_CLIENT_MODELS.value + "model_" + str(control) + ".pt"
+        #     while os.path.exists(path):
+        #         control += 1
+        #         path = svar.PATH_CLIENT_MODELS + "model_" + str(control) + ".pt"
 
-            model_path = path
+        #     model_path = path
         
         state_dict = model.state_dict()
 
         print("Train completed!")
         if args["save_model"]: 
+            model_path = args["model_path"]
             torch.save(state_dict, model_path)
-            control_models_info(model_path, args["epochs"], args["poison"], args["dataset_interval"])
+            # control_models_info(model_path, args["epochs"], args["poison"], args["dataset_interval"])
             
         return state_dict
     
@@ -121,7 +121,7 @@ def post_train(**kwargs: dict):
         return False
 
 
-def control_models_info(model_name: str, epochs: int, poison: str, dataset_name: str ,dataset_interval: str, save_path: str = None):
+def control_models_info(model_name: str, epochs: int, poison: str, dataset_name: str ,dataset_interval: str, save_path: str = None, isCentral: bool = False):
     """
     Method to save the models info in a json file.
 
@@ -136,7 +136,7 @@ def control_models_info(model_name: str, epochs: int, poison: str, dataset_name:
         None
     """
     
-    save_path = save_path if save_path is not None else svar.MODELS_INFO.value
+    save_path = save_path if save_path is not None else svar.EXPERIMENT_MODELS / "models_info.json"
 
     with open(save_path, "r") as f:
         import json
@@ -154,7 +154,7 @@ def control_models_info(model_name: str, epochs: int, poison: str, dataset_name:
         import json
         json.dump(models_info, f, indent=4)
 
-def merge_models(new_model: dict, old_model: dict = None, old_mpath: str = f"{svar.PATH_CENTRAL_MODELS.value}central.pt", alpha: float = 0.2):
+def merge_models(new_model: dict, old_model: dict = None, old_mpath: str = None, alpha: float = 0.4):
     """
     Method to receive models from clients, merge them with the central model using average of the weights and save the updated model as central model.
     For this, send a compatible static dict model, please. If you have questions about compatibility, check the modelNet.py documentation.
@@ -170,10 +170,10 @@ def merge_models(new_model: dict, old_model: dict = None, old_mpath: str = f"{sv
         print("\n=====================\n",f"The model is incompatible!\n=====================\n")
         return False
     
-    device = svar.DEFAULT_DEVICE.value
+    device = svar.DEFAULT_DEVICE
 
     if old_model is None:
-        if os.path.exists(old_mpath):
+        if old_mpath and os.path.exists(old_mpath):
             old_model = torch.load(old_mpath, map_location=device)
         else:
             print("\n=========================\n",f"No old model found in {old_mpath}. A new model will be created.\n=========================\n")
@@ -190,9 +190,10 @@ def merge_models(new_model: dict, old_model: dict = None, old_mpath: str = f"{sv
             else:
                 updated_model[k] = old_model[k]
         
-        torch.save(updated_model, old_mpath)
-        print(f"Updated model saved in {old_mpath}")
-        return True
+        if (old_mpath):
+            torch.save(updated_model, old_mpath)
+            print(f"Updated model saved in {old_mpath}")
+        return updated_model
 
     except Exception as e:
         print("\n=========================\nMerged is failed!\nException: \n")
@@ -200,6 +201,62 @@ def merge_models(new_model: dict, old_model: dict = None, old_mpath: str = f"{sv
         print("\n=========================\n")
         return False
 
+def merge_n_models(models: list, save_path: str = None):
+    """
+    Method to merge multiple models using simple arithmetic mean of the weights.
+    Incompatible models are automatically removed from the list.
+    
+    Args:
+        models (list): List of state_dicts to be merged.
+        save_path (str | None): Path to save the merged model. If None, the model is not saved.
+    
+    Returns:
+        dict | bool: The state_dict of the merged model, or False if something goes wrong.
+    """
+    
+    # Filtra apenas modelos compatíveis
+    compatible_models = [m for m in models if is_compatible(m)]
+    
+    if len(compatible_models) == 0:
+        print("\n=========================\n")
+        print("No compatible models found in the list!")
+        print("\n=========================\n")
+        return False
+    
+    removed_count = len(models) - len(compatible_models)
+    if removed_count > 0:
+        print(f"\n[INFO] {removed_count} incompatible model(s) removed from the list.\n")
+    
+    try:
+        # Usa o primeiro modelo como base para as keys
+        base_model = compatible_models[0]
+        merged_model = {}
+        n = len(compatible_models)
+        
+        for k in base_model.keys():
+            # Soma os pesos de todos os modelos compatíveis
+            weight_sum = torch.zeros_like(base_model[k], dtype=torch.float32)
+            
+            for model in compatible_models:
+                weight_sum += model[k].float()
+            
+            # Calcula a média aritmética simples
+            merged_model[k] = weight_sum / n
+        
+        # Salva o modelo se um caminho foi fornecido
+        if save_path is not None:
+            torch.save(merged_model, save_path)
+            print(f"Merged model saved in {save_path}")
+        
+        print(f"Successfully merged {n} models.")
+        return merged_model
+    
+    except Exception as e:
+        print("\n=========================\n")
+        print("Merge failed! Exception:")
+        print(e)
+        print("\n=========================\n")
+        return False
 
 
 def is_compatible(static_dict):

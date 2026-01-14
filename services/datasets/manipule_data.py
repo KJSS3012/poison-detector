@@ -2,10 +2,11 @@ from sysvars import SysVars as svar
 from torchvision import datasets
 from torchvision.utils import save_image
 from torch.utils.data import random_split
-from modelNet import Net, netTransform
+from services.trains.modelNet import Net, netTransform
 import torch
 import os
-from datasets.load_data import PTDataset
+from pathlib import Path
+from services.datasets.load_data import PTDataset
 
 def save_mnist_examples(base_path='./datasets/sample_images/'):
     """
@@ -20,8 +21,7 @@ def save_mnist_examples(base_path='./datasets/sample_images/'):
         None
     """
 
-    # mnist_trainset = PTDataset(pt_file = svar.PATH_BASE_DATASET.value + "training.pt")
-    mnist_trainset = PTDataset(pt_file = svar.PATH_BASE_DATASET.value + "test.pt")
+    mnist_trainset = PTDataset(pt_file = svar.MNIST_TEST_PATH)
 
     numbers = {
         0:0,
@@ -41,7 +41,7 @@ def save_mnist_examples(base_path='./datasets/sample_images/'):
             numbers[c] += 1
             save_image(t, f'{base_path}sample_{c}_{numbers[c]}.png')
 
-def create_poisoned_dataset_x_to_y(x: int, y: int, path: str = None, path_to_load: str = None):
+def create_poisoned_dataset_x_to_y(x: int, y: int, path: str = None, path_to_load: Path = None):
     """
     Manipulates the MNIST dataset to create a poisoned version.
 
@@ -60,13 +60,13 @@ def create_poisoned_dataset_x_to_y(x: int, y: int, path: str = None, path_to_loa
         None
     """
 
-    path_to_load = svar.PATH_BASE_DATASET.value if path_to_load is None else path_to_load
+    path_to_load = svar.MNIST_ROOT_PATH if path_to_load is None else path_to_load
 
     # mnist_trainset = datasets.MNIST(root=path_to_load, train=True, download=False, transform=netTransform)
     # mnist_testset = datasets.MNIST(root=path_to_load, train=False, download=False, transform=netTransform)
 
-    mnist_trainset = PTDataset(pt_file = path_to_load + "training.pt")
-    mnist_testset = PTDataset(pt_file = path_to_load + "test.pt")
+    mnist_trainset = PTDataset(pt_file = path_to_load / "training.pt")
+    mnist_testset = PTDataset(pt_file = path_to_load / "test.pt")
     
     train_targets = mnist_trainset.targets.clone()
     train_targets[train_targets == x] = y
@@ -79,17 +79,17 @@ def create_poisoned_dataset_x_to_y(x: int, y: int, path: str = None, path_to_loa
 
     if path is None:
         control = 1
-        path = f"./datasets/poisoned_data_set_{control}/"
+        path = f"./datasets/poisoned_data_set_{control}"
         while os.path.exists(path):
             control += 1
-            path = f"./datasets/poisoned_data_set_{control}/"
+            path = f"./datasets/poisoned_data_set_{control}"
 
     os.makedirs(f"{path}", exist_ok=True)
         
 
 
-    torch.save((train_data, train_targets), f'{path}training.pt')
-    torch.save((test_data, test_targets), f'{path}test.pt')
+    torch.save((train_data, train_targets), path / "training.pt")
+    torch.save((test_data, test_targets), path / "test.pt")
 
 
 
@@ -109,7 +109,7 @@ def create_dataset(init_tax_interval: float, end_tax_interval: float, path: str 
     """
 
     if path_to_load is None:
-        path_to_load = svar.PATH_BASE_DATASET.value
+        path_to_load = svar.MNIST_TRAIN_PATH
 
     mnist_trainset = PTDataset(pt_file = path_to_load + "training.pt")
     mnist_testset = PTDataset(pt_file = path_to_load + "test.pt")
@@ -154,7 +154,7 @@ def create_randomized_dataset(size:float = 0.2, path_to_load: str = None, path_t
         None
     """
 
-    path_to_load = svar.PATH_BASE_DATASET.value + "training.pt" if path_to_load is None else path_to_load
+    path_to_load = svar.MNIST_TRAIN_PATH if path_to_load is None else path_to_load
 
     dataset = PTDataset(pt_file = path_to_load + "training.pt")
     total_size = len(dataset)
