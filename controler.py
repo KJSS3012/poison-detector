@@ -1,15 +1,17 @@
 import os
-from clients.train import post_train as client_train
-from central.train import post_train as central_train
-from analyses.get_confusion_map import get_confusion_map
-from xai.gradcam.gradcam import mean_gradCAM
-from xai.gradcam.scorecam import mean_scorecam
-from xai.gradcam.utils import save_sad_mask
-from xai.distance_algorithms.sad import sad
-from xai.distance_algorithms.ssim import ssim_algorithm as ssim
-from xai.distance_algorithms.com import com_algorithm as com
-from xai.lime.lime import analyze_with_lime
-from analyses.view_acc import get_accuracy
+from services.trains.train import post_train, control_models_info, merge_models, merge_n_models
+from services.trains.view_acc import get_accuracy
+# from analyses.get_confusion_map import get_confusion_map
+# from xai.lime.lime import analyze_with_lime
+# from analyses.view_acc import get_accuracy
+from services.xai.gradcam.gradcam import mean_gradCAM, mean_plusplusCAM
+from services.xai.gradcam.scorecam import mean_scorecam
+from services.xai.gradcam.utils import save_sad_mask
+from services.xai.distance_algorithms.sad import sad
+from services.xai.distance_algorithms.ssim import ssim_algorithm as ssim
+from services.xai.distance_algorithms.com import com_algorithm as com
+from services.xai.distance_algorithms.was import wassertein_algorithm as was
+from services.xai.treshold_algorithms.iqr import interquartile_range_treshold as iqr
 from torchvision import datasets, transforms
 from torchvision.utils import save_image
 from services.trains.modelNet import netTransform, Net
@@ -19,9 +21,182 @@ import matplotlib.pyplot as plt
 import torch
 import cv2
 import numpy as np
-from datasets.manipule_data import save_mnist_examples, create_dataset, create_poisoned_dataset_x_to_y, create_randomized_dataset
-from datasets.load_data import PTDataset
-from convergence_experiment.train import post_train as convergence_train
+from services.datasets.manipule_data import save_mnist_examples, create_dataset, create_poisoned_dataset_x_to_y, create_randomized_dataset
+from services.datasets.load_data import PTDataset
+from services.trains.train import post_train as convergence_train
+
+def experiment_001():
+
+    epochs = 40
+    central = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "central_model.pt")
+    control_models_info(model_name="central_model.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=True)
+
+    model1 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_1.pt")
+    control_models_info(model_name="belign_1.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model2 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_2.pt")
+    control_models_info(model_name="belign_2.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model3 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_3.pt")
+    control_models_info(model_name="belign_3.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model4 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_4.pt")
+    control_models_info(model_name="belign_4.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model5 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_5.pt")
+    control_models_info(model_name="belign_5.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model6 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "belign_6.pt")
+    control_models_info(model_name="belign_6.pt", epochs=epochs, poison="None", dataset_name="mnist", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model7 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "malign_1.pt", data_path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_1")
+    control_models_info(model_name="malign_1.pt", epochs=epochs, poison="7 > 1", dataset_name="poisoned_data_set_1", dataset_interval="0.0 - 1.0", isCentral=False)
+
+    model8 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "malign_2.pt", data_path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_2")
+    control_models_info(model_name="malign_2.pt", epochs=epochs, poison="3 > 9", dataset_name="poisoned_data_set_2", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model9 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "malign_3.pt", data_path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_3")
+    control_models_info(model_name="malign_3.pt", epochs=epochs, poison="8 > 2", dataset_name="poisoned_data_set_3", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    model10 = post_train(save_model = True, epochs = epochs, model_path = svar.EXPERIMENT_ROOT / "models" / "malign_4.pt", data_path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_4")
+    control_models_info(model_name="malign_4.pt", epochs=epochs, poison="6 > 4", dataset_name="poisoned_data_set_4", dataset_interval="0.0 - 1.0", isCentral=False)
+    
+    clients = [model1, model2, model3, model4, model5, model6, model7, model8, model9, model10]
+
+    i = 1
+    scores = []
+    for client in clients:
+        print("="*40)
+        print(f"XAI Analyses for Client {i}")
+        scores.append(xai_analyses(central, client))
+        i += 1
+
+       # Nomes para identificar cada combinação de score
+    xai_names = ["plusplusCAM", "gradCAM", "scorecam"]
+    class_index_names = ["class_true", "class_false"]
+    distance_names = ["sad", "ssim", "com", "was"]
+    
+    score_names = []
+    for xai in xai_names:
+        for ci in class_index_names:
+            for dist in distance_names:
+                score_names.append(f"{xai}_{ci}_{dist}")
+
+    # ...existing code de XAI analyses...
+
+    # SEM FILTRO
+    sf_central = dict(central)
+    sf_central = merge_n_models([sf_central] + [dict(map) for map in clients])
+    
+    print("\n" + "="*60)
+    print("ACURÁCIA SEM FILTRO (todos os clientes agregados):")
+    sf_accuracy = get_accuracy(sf_central)
+    print("="*60)
+
+    # COM FILTRO - armazena resultados para comparação
+    results = []
+    
+    for i in range(len(scores[0])):
+        cf_central = dict(central)
+        scores_data = []
+        for j in range(len(scores)):
+            scores_data.append(scores[j][i])
+
+        treshold = iqr(scores_data)
+        
+        # Verifica se o threshold é válido (não é NaN ou infinito)
+        if np.isnan(treshold) or np.isinf(treshold):
+            print("\n" + "="*60)
+            print(f"SCORE TYPE: {score_names[i]}")
+            print(f"Threshold inválido (NaN ou Inf): {treshold}")
+            print("Acurácia definida como 0")
+            results.append({
+                "score_type": score_names[i],
+                "threshold": treshold,
+                "clients_included": [],
+                "accuracy": 0.0
+            })
+            print("="*60)
+            continue
+
+        # Identifica quais clientes passaram no filtro
+        filtered_clients = []
+        filtered_dicts = []
+        for j in range(len(clients)):
+            if scores[j][i] < treshold:
+                filtered_dicts.append(dict(clients[j]))
+                filtered_clients.append(j + 1)  # +1 para índice legível
+        
+        cf_central = merge_n_models([dict(central)] + filtered_dicts)
+        
+        print("\n" + "="*60)
+        print(f"SCORE TYPE: {score_names[i]}")
+        print(f"Threshold: {treshold:.4f}")
+        print(f"Clientes incluídos: {filtered_clients}")
+        print(f"Clientes filtrados: {[j+1 for j in range(len(clients)) if j+1 not in filtered_clients]}")
+        
+        accuracy = get_accuracy(cf_central)
+        results.append({
+            "score_type": score_names[i],
+            "threshold": treshold,
+            "clients_included": filtered_clients,
+            "accuracy": accuracy
+        })
+        print("="*60)
+
+    # Salvar resultados em CSV
+    df_results = pd.DataFrame(results)
+    df_results.to_csv(svar.EXPERIMENT_CSV / "accuracy_by_score_type.csv", index=False)
+    
+    # Gráfico comparativo
+    plt.figure(figsize=(14, 6))
+    plt.bar(range(len(results)), [r["accuracy"] for r in results])
+    plt.axhline(y=sf_accuracy, color='r', linestyle='--', label=f'Sem Filtro: {sf_accuracy:.2%}')
+    plt.xticks(range(len(results)), [r["score_type"] for r in results], rotation=90)
+    plt.xlabel("Tipo de Score")
+    plt.ylabel("Acurácia")
+    plt.title("Acurácia do Modelo Central por Tipo de Score")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(svar.EXPERIMENT_GRAPHICS / "accuracy_comparison.png", dpi=300)
+    plt.close()
+    
+    print("\n" + "="*60)
+    print("RESUMO DOS RESULTADOS:")
+    print(f"Acurácia sem filtro: {sf_accuracy:.2%}")
+    print(f"Melhor score: {max(results, key=lambda x: x['accuracy'])}")
+    print("="*60)
+
+        
+
+
+def xai_analyses(central_model, client_model):
+
+    xai_algorithms = [
+        mean_plusplusCAM,
+        mean_gradCAM,
+        mean_scorecam
+    ]
+
+    distance_algorithms = [
+        sad,
+        ssim,
+        com,
+        was
+    ]
+    
+    scores = []
+    for xai_algo in xai_algorithms:
+        for class_index in [True, False]:
+            central_mask = xai_algo(central_model, save_path = "", class_index=class_index)
+            client_mask = xai_algo(client_model, save_path = "", class_index=class_index)
+            for dis_algo in distance_algorithms:
+                sum = 0
+                for i in range(10):
+                    sum += dis_algo(central_mask[i], client_mask[i])
+                scores.append(sum/10)
+    
+    return scores
 
 def post_client_train():
     pass
@@ -43,6 +218,7 @@ def get_diffs(static_output_path):
     central = get_weights(isCentral=False, selected_indice_models=[6])
     central_masks = mean_gradCAM(models=central, save_path="./teste/central_")
 
+    #COM O PATHLIB VOCÊ PODE PASSAR ASSIM: svar.BASEROOTEXEMPLO / "algumaCOisa"
     # create_dataset(0.0, 0.3, "./datasets/emnist_data_set_30/", "./datasets/emnist_data_set/")
     # create_poisoned_dataset_x_to_y(1, 7, "./datasets/emnist_poisoned_17/", "./datasets/emnist_data_set_30/")
     # create_poisoned_dataset_x_to_y(7, 1, "./datasets/emnist_poisoned_71/", "./datasets/emnist_data_set_30/")
@@ -116,37 +292,11 @@ def post_central_train():
         None
     """
 
-    mean_mask_central = mean_gradCAM(selected_indice_models=[1])
-
-    mean_mask_client_1 = mean_gradCAM(selected_indice_models=[4])
-    mean_mask_client_2 = mean_gradCAM(selected_indice_models=[6], isCentral=False)
-    mean_mask_client_3 = mean_gradCAM(selected_indice_models=[7], isCentral=False)
-    mean_mask_poisoned_1 = mean_gradCAM(selected_indice_models=[5], isCentral=False)
-    mean_mask_poisoned_2 = mean_gradCAM(selected_indice_models=[8], isCentral=False)
-
-
-    # score_client_1 = get_distance_scores([mean_mask_client_1], ref=mean_mask_central)
-    # score_client_2 = get_distance_scores([mean_mask_client_2], ref=mean_mask_central)
-    # score_client_3 = get_distance_scores([mean_mask_client_3], ref=mean_mask_central)
-    # score_poisoned_1 = get_distance_scores([mean_mask_poisoned_1], ref=mean_mask_central)
-    # score_poisoned_2 = get_distance_scores([mean_mask_poisoned_2], ref=mean_mask_central)
-
-
-    # print("\nDistance scores for benign client model 1:", score_client_1)
-    # print("\nDistance scores for benign client model 2:", score_client_2)
-    # print("\nDistance scores for benign client model 3:", score_client_3)
-    # print("\nDistance scores for malign client model 1:", score_poisoned_1)
-    # print("\nDistance scores for malign client model 2:", score_poisoned_2)
-
-
-    #for index in selected_indice_models:
-    #    new_model = get_weights(isCentral=False, selected_indice_models=[index])
-    #    new_model_dict = new_model[list(new_model.keys())[0]]
-    #    central_train(new_model=new_model_dict)
+    pass
 
 
 
-def get_weights(isCentral = True,selected_indice_models: list = []):
+def get_weights(path, isCentral = True,selected_indice_models: list = []):
     """
     Loads one or more saved model state_dicts from disk.
 
@@ -170,9 +320,9 @@ def get_weights(isCentral = True,selected_indice_models: list = []):
         FileNotFoundError: If the specified model directory does not exist.
         ValueError: If no valid model files are found.
     """
-    path = svar.PATH_CLIENT_MODELS.value if not isCentral else svar.PATH_CENTRAL_MODELS.value
+    # path = svar.PATH_CLIENT_MODELS if not isCentral else svar.PATH_CENTRAL_MODELS
 
-    if not os.path.exists(svar.PATH_CLIENT_MODELS.value):
+    if not os.path.exists(svar.PATH_CLIENT_MODELS):
         raise FileNotFoundError(f"The specified path {path} does not exist.")
     
     models_path = sorted(os.listdir(path))
@@ -224,57 +374,15 @@ def get_analyses():
     Returns:
         None
     """
-    #if not os.path.exists(svar.PATH_ANALYSES_CVS.value + "analyses.csv"):
-    #    train_labels = {
-    #        "train_id": [],
-    #        "accuracy": [],
-    #        "benign_clients": [],
-    #        "malignant_clients": [],
-    #        "poisoning": []
-    #    }
-    #    train_table = pd.DataFrame(train_labels)
-    
-    #else: train_table = pd.read_csv(svar.PATH_ANALYSES_CVS.value + "analyses.csv")
-
-    if not os.path.exists(svar.PATH_ANALYSES_CVS.value + "map.csv"):
-        map_labels = {
-            "train_id": [],
-            "0": [],
-            "1": [],
-            "2": [],
-            "3": [],
-            "4": [],
-            "5": [],
-            "6": [],
-            "7": [],
-            "8": [],
-            "9": []
-        }
-        map_table = pd.DataFrame(map_labels)
-
-    else: 
-        map_table = pd.read_csv(svar.PATH_ANALYSES_CVS.value + "map.csv")
-
-    models = get_weights(isCentral=True, selected_indice_models=[1])
-
-    #get_confusion_map(models["model_5.pt"], "model_5")
-    get_confusion_map(models["model_1.pt"], "central_model_1")
-    acc_belign = get_accuracy(models["model_1.pt"])
-    mean_gradCAM(selected_indice_models=[1])
-    print("Acc benign central model 1: ", acc_belign)
-
-    #train_table.to_csv(svar.PATH_ANALYSES_CVS.value + "analyses.csv", index=False, encoding="utf-8")
-    #map_table.to_csv(svar.PATH_ANALYSES_CVS.value + "map.csv", index=False, encoding="utf-8")
-   
+    pass
 
 
 def lime():
     
-    # test_dataset = PTDataset(pt_file = svar.PATH_BASE_DATASET.value + "training.pt")
-    test_dataset = PTDataset(pt_file = svar.PATH_BASE_DATASET.value + "test.pt")
+    test_dataset = PTDataset(pt_file = svar.EMNIST_TEST_PATH)
     client_1 = get_weights(selected_indice_models=[4], isCentral=False)
 
-    model = Net().to(svar.DEFAULT_DEVICE.value)
+    model = Net().to(svar.DEFAULT_DEVICE)
     model.load_state_dict(client_1["model_4.pt"])
 
     results = analyze_with_lime(model, test_dataset, num_samples=50)
@@ -328,7 +436,33 @@ def data_manipulations():
     """
 
     # save_mnist_examples()
-    # create_poisoned_dataset_x_to_y(7, 1)
+    create_poisoned_dataset_x_to_y(8, 2, path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_3")
+    create_poisoned_dataset_x_to_y(6, 4, path = svar.EXPERIMENT_DATASETS / "poisoned_data_set_4")
+    
+
+    with open(svar.EXPERIMENT_DATASETS / "datasets_info.json", "r") as f:
+        import json
+        datasets_info = json.load(f)
+    datasets_info = []
+    datasets_info.append({
+        "dataset_name": "poisoned_data_set_3",
+        "poison": "8 > 2",
+        "base": "MNIST",
+        "dataset_interval": "0.0 - 1.0"
+    })
+
+    datasets_info.append({
+        "dataset_name": "poisoned_data_set_4",
+        "poison": "6 > 4",
+        "base": "MNIST",
+        "dataset_interval": "0.0 - 1.0"
+    })
+
+    with open(svar.EXPERIMENT_DATASETS / "datasets_info.json", "w") as f:
+        import json
+        json.dump(datasets_info, f, indent=4)
+
+    
     # create_dataset(0.0, 1.0)
 
     # train = datasets.EMNIST(root="data", split="digits", train=True, download=True)

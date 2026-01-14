@@ -81,6 +81,8 @@ temp/
 #/app/clients/models/
 #/app/central/models/
 */model_states/
+experiments/experiment_*/*
+experiments/test/*
 
 # Secrets and environment files
 secrets.json
