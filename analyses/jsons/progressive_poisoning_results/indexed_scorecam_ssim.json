@@ -1,0 +1,32 @@
+{
+    "1/5 poison ratio": {
+        "pc_acc": 98.265,
+        "non_allowed_clients": 8,
+        "true_positives": 6,
+        "npc_acc": 98.02
+    },
+    "2/5 poison ratio": {
+        "pc_acc": 97.81,
+        "non_allowed_clients": 8,
+        "true_positives": 5,
+        "npc_acc": 97.8125
+    },
+    "3/5 poison ratio": {
+        "pc_acc": 97.63,
+        "non_allowed_clients": 8,
+        "true_positives": 7,
+        "npc_acc": 96.535
+    },
+    "4/5 poison ratio": {
+        "pc_acc": 97.755,
+        "non_allowed_clients": 8,
+        "true_positives": 8,
+        "npc_acc": 94.6975
+    },
+    "5/5 poison ratio": {
+        "pc_acc": 96.87,
+        "non_allowed_clients": 8,
+        "true_positives": 8,
+        "npc_acc": 84.79
+    }
+}

@@ -1,0 +1,32 @@
+{
+    "poisoneds_2": {
+        "pc_acc": 98.415,
+        "non_allowed_clients": 8,
+        "true_positives": 2,
+        "npc_acc": 97.8475
+    },
+    "poisoneds_4": {
+        "pc_acc": 98.47,
+        "non_allowed_clients": 8,
+        "true_positives": 4,
+        "npc_acc": 98.09
+    },
+    "poisoneds_6": {
+        "pc_acc": 98.5425,
+        "non_allowed_clients": 8,
+        "true_positives": 6,
+        "npc_acc": 97.2825
+    },
+    "poisoneds_8": {
+        "pc_acc": 97.6825,
+        "non_allowed_clients": 8,
+        "true_positives": 5,
+        "npc_acc": 96.9525
+    },
+    "poisoneds_10": {
+        "pc_acc": 98.335,
+        "non_allowed_clients": 8,
+        "true_positives": 8,
+        "npc_acc": 96.53
+    }
+}
